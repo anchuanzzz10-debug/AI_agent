@@ -1,0 +1,11 @@
+# Copy to website-3.yaml (real configs are git-ignored) and edit.
+id: website-3
+name: Website 3
+type: wordpress
+url: https://website3.example.com
+features:
+  seo: false            # choose per site; change later: guardian project set website-3 seo on|off
+key_paths: ["/", "/contact/"]   # pages re-checked after every change
+expected_text: null    # text that must appear on the homepage (detects defacement / broken templates)
+alert_chat_id: null    # Telegram chat for this project only (null = default chat)
+language: ml+en        # report language: ml, en or ml+en

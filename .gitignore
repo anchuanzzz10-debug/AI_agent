@@ -1,0 +1,19 @@
+# Runtime data: credentials, logs, incidents, backups. Never commit.
+data/
+*.enc
+.env
+.env.*
+
+# Real project configs stay local; only *.example.yaml are committed.
+config/projects/*.yaml
+!config/projects/*.example.yaml
+
+# Voice test recordings (your voice) stay local.
+voice-tests/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/

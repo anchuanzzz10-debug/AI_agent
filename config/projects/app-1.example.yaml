@@ -1,0 +1,9 @@
+# Copy to app-1.yaml and edit. SEO is off by default for applications.
+id: app-1
+name: Custom Application
+type: application
+url: https://app.example.com
+health_path: /health   # endpoint returning HTTP 200 (and optionally {"status": "ok"})
+key_paths: ["/"]
+alert_chat_id: null
+language: ml+en
