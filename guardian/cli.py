@@ -11,6 +11,8 @@
     guardian approvals ID | approve ID APPROVAL | reject ID APPROVAL
     guardian lang "text"
     guardian voice status | voice eval --manifest FILE [--provider faster-whisper --model medium]
+    guardian passphrase store | status | remove     (Windows Credential Manager)
+    guardian autostart install [--interval 5] | start | stop | status | remove
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from pathlib import Path
 
 import httpx
 
+from . import autostart, secrets_store
 from .approvals import ApprovalGate, ApprovalStatus
 from .incidents import IncidentManager
 from .language import parse_command
@@ -38,9 +41,17 @@ from .vault import Vault, VaultError
 
 
 def _passphrase(confirm: bool = False) -> str:
+    """Order: GUARDIAN_PASSPHRASE env var → OS credential store → prompt."""
     env = os.environ.get("GUARDIAN_PASSPHRASE")
     if env:
         return env
+    if not confirm:
+        stored = secrets_store.get_passphrase(guardian_home())
+        if stored:
+            return stored
+    if not sys.stdin or not sys.stdin.isatty():
+        raise VaultError("No passphrase available and no keyboard to ask for one. "
+                         "Run `guardian passphrase store` once in a normal PowerShell window.")
     first = getpass.getpass("Vault passphrase: ")
     if confirm and getpass.getpass("Repeat passphrase: ") != first:
         raise VaultError("Passphrases do not match")
@@ -133,12 +144,80 @@ def cmd_check(args) -> int:
     reg, vault = Registry(config_dir()), _vault()
     if not args.loop:
         return _check_once(args, reg, vault)
-    print(f"Monitoring every {args.loop} min. Ctrl+C to stop.")
+    print(f"Monitoring every {args.loop} min. Ctrl+C to stop.", flush=True)
     while True:
         started = time.monotonic()
-        code = _check_once(args, reg, vault)
-        print(f"{time.strftime('%H:%M:%S')} run finished (exit {code})")
+        try:
+            code = _check_once(args, reg, vault)
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} run finished (exit {code})", flush=True)
+        except Exception as exc:  # noqa: BLE001 - one bad run must not stop monitoring
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} run FAILED: {type(exc).__name__}: {exc}",
+                  flush=True)
         time.sleep(max(5.0, args.loop * 60 - (time.monotonic() - started)))
+
+
+# ---------------------------------------------------------------------------
+# Passphrase in the OS credential store (Windows Credential Manager)
+# ---------------------------------------------------------------------------
+
+def cmd_passphrase(args) -> int:
+    home = guardian_home()
+    if args.action == "store":
+        passphrase = getpass.getpass("Vault passphrase to store in Windows Credential Manager: ")
+        Vault.open(home, passphrase)  # refuse to store a wrong passphrase
+        try:
+            secrets_store.store_passphrase(home, passphrase)
+        except secrets_store.SecretStoreUnavailable as exc:
+            raise VaultError(str(exc)) from exc
+        print(f"Stored in the credential store ({secrets_store.backend_name()}). "
+              "It is encrypted for your Windows user account; no plain-text copy was written.")
+    elif args.action == "status":
+        stored = secrets_store.get_passphrase(home) is not None
+        print(f"Credential store: {secrets_store.backend_name()}")
+        print(f"Passphrase stored: {'yes' if stored else 'no'}")
+        if os.environ.get("GUARDIAN_PASSPHRASE"):
+            print("WARNING: GUARDIAN_PASSPHRASE environment variable is set. Environment variables "
+                  "are plain text; remove it (see README) and use the credential store instead.")
+    elif args.action == "remove":
+        try:
+            removed = secrets_store.delete_passphrase(home)
+        except secrets_store.SecretStoreUnavailable as exc:
+            raise VaultError(str(exc)) from exc
+        print("Removed from the credential store." if removed else "Nothing was stored.")
+    return 0
+
+
+def cmd_autostart(args) -> int:
+    home, config = guardian_home(), config_dir()
+    if args.action == "install":
+        if os.environ.get("GUARDIAN_PASSPHRASE"):
+            raise autostart.AutostartError(
+                "GUARDIAN_PASSPHRASE environment variable is set. It is plain text, so auto-start "
+                "refuses to install while it exists. Remove it and use `guardian passphrase store`.")
+        stored = secrets_store.get_passphrase(home)
+        if not stored:
+            raise autostart.AutostartError(
+                "No passphrase in the credential store. Run `guardian passphrase store` first.")
+        Vault.open(home, stored)  # stored passphrase must still be correct
+        if not Registry(config).load_all():
+            raise autostart.AutostartError("No projects configured; add projects first.")
+        launcher = autostart.install(home, config, args.interval)
+        print(f"Task '{autostart.TASK_NAME}' created: starts 1 minute after you log in to Windows, "
+              f"checks all projects every {args.interval:g} min.")
+        print(f"Launcher: {launcher}")
+        print(f"Log: {home / 'logs' / 'autostart.log'}")
+        print("It was NOT started now. To start it without logging out: guardian autostart start")
+    elif args.action == "start":
+        autostart.start()
+        print("Started. Check `guardian autostart status` and the log in a minute.")
+    elif args.action == "stop":
+        autostart.stop()
+        print("Stopped (it will start again at your next login unless removed).")
+    elif args.action == "remove":
+        print("Removed." if autostart.remove() else "Task was not installed.")
+    elif args.action == "status":
+        print(autostart.status())
+    return 0
 
 
 def cmd_incidents(args) -> int:
@@ -248,6 +327,15 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--provider", default="faster-whisper", choices=["faster-whisper", "hf"])
     v.add_argument("--model", default="medium")
     v.set_defaults(fn=cmd_voice)
+
+    pp = sub.add_parser("passphrase", help="store the vault passphrase in Windows Credential Manager")
+    pp.add_argument("action", choices=["store", "status", "remove"])
+    pp.set_defaults(fn=cmd_passphrase)
+
+    au = sub.add_parser("autostart", help="Windows Task Scheduler auto-start")
+    au.add_argument("action", choices=["install", "start", "stop", "status", "remove"])
+    au.add_argument("--interval", type=float, default=5, metavar="MINUTES")
+    au.set_defaults(fn=cmd_autostart)
     return ap
 
 
@@ -258,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     try:
         return args.fn(args)
-    except (ConfigError, VaultError) as exc:
+    except (ConfigError, VaultError, autostart.AutostartError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

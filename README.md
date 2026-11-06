@@ -29,6 +29,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Incidents, approvals, backup → change → verify → rollback (post fields, plugin on/off) | ✅ |
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
+| Auto-start: passphrase in Windows Credential Manager + Task Scheduler task | ✅ Logic tested with a simulated credential store and a simulated `schtasks`. ⚠️ Not yet run on real Windows. |
 | Malayalam, Manglish and English command parsing (fixed command dictionary) | ✅ |
 | Malayalam voice: speech recognition and speech output providers, plus the evaluation tool | ⚠️ **Code only, NOT TESTED** (see "Malayalam voice" below) |
 
@@ -121,7 +122,30 @@ guardian check website-1
 ```powershell
 guardian check all --loop 5 --quiet
 ```
-`--loop 5` keeps monitoring every 5 minutes. To start it at login, add it to Windows Task Scheduler.
+`--loop 5` keeps monitoring every 5 minutes. A failed run is logged and the loop carries on.
+
+## Auto-start at Windows login
+
+The vault passphrase is stored in **Windows Credential Manager** (encrypted for your Windows user account), never in a file or environment variable. A Task Scheduler task then starts monitoring 1 minute after you log in.
+
+```powershell
+guardian passphrase store
+```
+```powershell
+guardian autostart install --interval 5
+```
+```powershell
+guardian autostart start
+```
+```powershell
+guardian autostart status
+```
+
+- `install` refuses if the passphrase isn't stored or is wrong, if no projects exist, or if a plain-text `GUARDIAN_PASSPHRASE` environment variable is set. It creates the task but **doesn't start it**.
+- The task runs as you, without admin rights, and only while you're logged in. It keeps running on battery, has no time limit, restarts every minute if it crashes, and never runs twice at once.
+- Output goes to `data\logs\autostart.log`.
+- To turn it off: `guardian autostart remove`, then `guardian passphrase remove`.
+- **Security trade-off:** any program running under your Windows account can read Credential Manager entries. Use a strong Windows password or PIN and keep BitLocker on.
 
 ## Alerts (Telegram)
 

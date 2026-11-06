@@ -1,4 +1,4 @@
-# Test report: version 0.1
+# Test report: versions 0.1–0.2
 
 Environment: a cloud build sandbox (Linux, Python 3.13). **This is not your laptop**, and the sandbox can't reach most websites.
 
@@ -15,6 +15,22 @@ Run with `pytest`. They use a simulated WordPress site (`tests/fakesite.py`) and
 - **Changes:** a verified change marks its incident fixed. A change that breaks the site is rolled back and reported as failed. A change that WordPress accepts but doesn't save is *not* reported as success. No backup means no change.
 - **Language:** Malayalam, Manglish and English detection and command parsing, including misspelt Manglish. Approve without an approval id gives low confidence; reject wins over approve.
 - **Voice metrics:** CER and WER calculations. VERIFIED requires ≥30 samples and the accuracy thresholds.
+
+## Auto-start and passphrase storage (added in version 0.2): 18 tests, total now 84 passed
+
+Run with an in-memory credential store and a recorded fake `schtasks`, because the real Windows services can't run on the Linux build machine:
+
+- **Storage:** store, read and delete work. Each vault location has its own entry. When no credential store exists, it's reported as unavailable, never faked.
+- **The passphrase is checked before saving.** A wrong passphrase is refused and nothing is stored.
+- **No plain text:** after storing the passphrase and installing auto-start, no file in the data or config folders contains it, in UTF-8 or UTF-16. `passphrase status` never prints it.
+- **No prompts when stored.** Without a stored passphrase, a background run fails with a clear message instead of hanging.
+- **`autostart install` refuses** when the passphrase isn't stored, when the stored one is outdated, or when a plain-text `GUARDIAN_PASSPHRASE` variable is set. In each case `schtasks` is never called.
+- **Install creates the task but doesn't start it.**
+- **Task definition** (the UTF-16 XML is parsed in the test): logon trigger for the current user, interactive, least privilege, keeps running on battery, no time limit, restarts on failure, never runs twice at once.
+- **Launcher script:** removes any `GUARDIAN_PASSPHRASE` variable, escapes paths containing apostrophes, and writes to a log.
+- **The monitoring loop survives a failed run.**
+
+**Not verified until run on your laptop:** real Credential Manager storage, real `schtasks` acceptance of the XML, the hidden PowerShell start at login, and the Task Scheduler status output (its labels may differ on non-English Windows).
 
 ## Real-network tests (limited by the sandbox)
 - Command-line flow run end to end: init, add projects, check, report, incidents, the SEO toggle and the `lang` command.
