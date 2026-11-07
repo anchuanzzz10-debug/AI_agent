@@ -1,0 +1,10 @@
+<label>{{ t('reason') }}</label>
+<input name="reason" maxlength="500" placeholder="{{ t('propose_reason_ph') }}">
+{% if open_incidents %}
+<label>{{ t('propose_link_incident') }}</label>
+<select name="incident">
+  <option value="">{{ t('none') }}</option>
+  {% for i in open_incidents %}<option value="{{ i.id }}">{{ i.id }} · {{ i.title[:60] }}</option>{% endfor %}
+</select>
+{% endif %}
+<button class="btn primary" type="submit">{{ t('propose_submit') }}</button>

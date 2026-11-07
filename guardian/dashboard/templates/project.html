@@ -139,6 +139,47 @@
     </div>
   </form>
 </section>
+<section class="card" id="propose">
+  <h2>🛠️ {{ t('propose_title') }}</h2>
+  <p class="muted small">{{ t('propose_help') }}</p>
+  {% if not wp.change %}
+    <div class="flash">{{ t('propose_need_login') }}</div>
+  {% else %}
+  <details open>
+    <summary>🔌 {{ t('propose_plugin') }}</summary>
+    <form method="post" action="/projects/{{ p.id }}/propose" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="plugin">
+      <label for="pp">{{ t('propose_plugin_name') }}</label>
+      <input id="pp" name="plugin" placeholder="akismet/akismet" autocapitalize="none" spellcheck="false" required>
+      <label for="ps">{{ t('propose_action') }}</label>
+      <select id="ps" name="plugin_status">
+        <option value="inactive">{{ t('propose_deactivate') }}</option>
+        <option value="active">{{ t('propose_activate') }}</option>
+      </select>
+      {% include "_propose_common.html" %}
+    </form>
+  </details>
+  <details>
+    <summary>📄 {{ t('propose_post') }}</summary>
+    <form method="post" action="/projects/{{ p.id }}/propose" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="post">
+      <label for="pt">{{ t('type') }}</label>
+      <select id="pt" name="post_type"><option value="pages">{{ t('page') }}</option><option value="posts">{{ t('post') }}</option></select>
+      <label for="pid">{{ t('propose_post_id') }}</label>
+      <input id="pid" name="post_id" inputmode="numeric" pattern="[0-9]+" required>
+      <label for="pf">{{ t('propose_field') }}</label>
+      <select id="pf" name="field">
+        <option value="title">{{ t('field_title') }}</option>
+        <option value="excerpt">{{ t('field_excerpt') }}</option>
+        <option value="status">{{ t('field_status') }}</option>
+      </select>
+      <label for="pv">{{ t('propose_value') }}</label>
+      <input id="pv" name="value" required maxlength="2000">
+      {% include "_propose_common.html" %}
+    </form>
+  </details>
+  {% endif %}
+</section>
 {% else %}
 <section class="card"><p class="muted">🔓 {{ t('no_login_needed') }}</p></section>
 {% endif %}

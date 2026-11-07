@@ -26,7 +26,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Plugin update detection for WordPress.org plugins | ✅ |
 | Guardian Connector plugin: core version, all updates including premium, PHP error log, administrator list, Rank Math settings | ✅ Written and syntax-checked. ⚠️ Not yet tested on a real WordPress install. |
 | Technical SEO: robots.txt, noindex, title, meta description, canonical, H1, sitemap, Rank Math detection | ✅ |
-| Incidents, approvals, backup → change → verify → rollback (post fields, plugin on/off) | ✅ |
+| Approved changes from the dashboard (WordPress): propose a plugin on/off or a page/post title, excerpt or status change → Approve → backup → change → verify (change + key pages) → automatic rollback if anything fails; result shown on the Approvals page; linked incident closed only when verified | ✅ Tested end to end against the simulated WordPress site (13 tests plus a browser run). ⚠️ Not yet used on a real site |
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
 | Dashboard (laptop + phone, Malayalam/English): overview with totals and a monitoring-freshness warning, Incidents (evidence + history), check history, System status (no secrets shown), connect websites/apps (health-check address for apps), WordPress connection test, settings, approvals, chat | ✅ 173 tests, plus a real-browser check of 7 pages × 2 languages × laptop/phone. ⚠️ Newest pages not yet opened on your laptop |
@@ -38,7 +38,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 
 ## Not built yet (planned)
 - Search Console integration (indexing status, keyword clicks and positions). Reported as NOT CHECKED until built.
-- Applying approved changes automatically: the change engine (backup → change → verify → rollback) exists and is tested, but nothing creates change requests or carries out approved ones yet. Approving in the dashboard only records your decision.
+- More change types: plugin/theme/core updates (need full backups), content edits, and fixes for non-WordPress sites. Changes the agent proposes by itself from incidents (today you propose them).
 - Telegram bot that *receives* messages (voice notes, Approve/Reject buttons).
 - Full database and file backups. Without them the agent refuses plugin, theme and core updates.
 - AI diagnosis of unfamiliar problems, and AI-proposed fixes (the AI can currently only read).

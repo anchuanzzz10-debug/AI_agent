@@ -91,6 +91,15 @@ class ApprovalGate:
         self.store.audit("executor", "approval_used", id=approval_id)
         return row
 
+    def record_result(self, approval_id: str, execution: dict[str, Any]) -> dict[str, Any]:
+        """Store what happened when an approved change was executed."""
+        row = self._row(approval_id)
+        row["data"]["execution"] = execution
+        self._save(row)
+        self.store.audit("executor", "execution_recorded", id=approval_id,
+                         state=execution.get("state"), outcome=execution.get("outcome"))
+        return row
+
     def list(self, status: ApprovalStatus | None = None) -> list[dict[str, Any]]:
         rows = [self._row(r["id"]) for r in self.store.fetch("approvals")]
         if status:

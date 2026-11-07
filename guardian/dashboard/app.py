@@ -26,6 +26,7 @@ from ..incidents import CLOSED, IncidentManager, IncidentStatus
 from ..models import FEATURES, ConfigError, ProjectConfig, ProjectType, _INCOMPATIBLE
 from ..monitor import Monitor, internet_available
 from ..notify import Notifier
+from ..proposals import ProposalError, describe, execute_approved, plugin_spec, post_spec, propose
 from ..registry import Registry
 from ..storage import ProjectStore
 from ..vault import Vault
@@ -37,7 +38,7 @@ HERE = Path(__file__).parent
 COOKIE = "guardian_session"
 CRED_NAME_RE = re.compile(r"^[a-z0-9_]{2,40}$")
 FLASH_KEYS = {"saved", "created", "created_wp", "deleted", "approved", "rejected", "check_started",
-              "csrf_failed"}
+              "csrf_failed", "proposed", "approved_running"}
 
 CheckRunner = Callable[[ProjectConfig], None]
 # Background monitoring checks every 5 minutes; older results suggest it stopped.
@@ -97,7 +98,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                check_runner: CheckRunner | None = None, sessions: auth.SessionStore | None = None,
                http_client_factory: Callable[[], httpx.Client] = _default_http_client,
                ai_client: OllamaClient | None = None,
-               clock: Callable[[], float] = time.time) -> FastAPI:
+               clock: Callable[[], float] = time.time,
+               job_runner: Callable[[Callable[[], None]], None] | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -152,6 +154,10 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
 
     ai_agent = Agent(ai_client, registry.load_all, store_for, start_check) if ai_client else None
 
+    def _thread_runner(job: Callable[[], None]) -> None:
+        threading.Thread(target=job, daemon=True, name="guardian-change").start()
+    run_job = job_runner or _thread_runner
+
     def summarize(project: ProjectConfig) -> dict:
         store = store_for(project.id)
         run_id, ts, results = store.latest_run()
@@ -182,6 +188,7 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                    "https": project.url.startswith("https://"),
                    "profile_url": project.url + "/wp-admin/profile.php#application-passwords-section"},
             "wp_labels": WP_LABELS,
+            "open_incidents": IncidentManager(store_for(project.id)).list(),
             "history": [h | {"at": time.strftime("%Y-%m-%d %H:%M", time.localtime(h["ts"]))}
                         for h in store_for(project.id).run_history(10)],
         }
@@ -338,6 +345,34 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         return render(request, "project.html", session, **project_ctx(project),
                       wp_test=results, wp_verdict=verdict)
 
+    @app.post("/projects/{pid}/propose")
+    def propose_change(request: Request, pid: str, csrf: str = Form(""), kind: str = Form(""),
+                       plugin: str = Form(""), plugin_status: str = Form("inactive"),
+                       post_type: str = Form("pages"), post_id: str = Form(""), field: str = Form("title"),
+                       value: str = Form(""), reason: str = Form(""), incident: str = Form("")):
+        session = session_of(request)
+        if not session:
+            return to_login()
+        if not auth.csrf_ok(session, csrf):
+            return back(f"/projects/{pid}", "csrf_failed")
+        project = registry.get(pid)
+        store = store_for(project.id)
+        try:
+            if kind == "plugin":
+                spec = plugin_spec(project, plugin, plugin_status)
+            elif kind == "post":
+                spec = post_spec(project, post_type, post_id, field, value)
+            else:
+                raise ProposalError("Unknown change type")
+            open_ids = {i["id"] for i in IncidentManager(store).list()}
+            if incident and incident not in open_ids:
+                raise ProposalError("Linked incident is not open")
+            propose(project, store, vault.project(project.id), spec, reason, incident or None)
+        except ProposalError as exc:
+            return render(request, "project.html", session, **project_ctx(project),
+                          error=str(exc), status_code=400)
+        return back("/approvals", "proposed")
+
     @app.post("/projects/{pid}/check")
     def check(request: Request, pid: str, csrf: str = Form("")):
         session = session_of(request)
@@ -414,11 +449,16 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         session = session_of(request)
         if not session:
             return to_login()
-        rows = []
+        lang = lang_of(request)
+        rows, recent = [], []
         for p in registry.load_all():
-            for a in ApprovalGate(store_for(p.id)).list(ApprovalStatus.PENDING):
-                rows.append({"project": p, "approval": a})
-        return render(request, "approvals.html", session, rows=rows)
+            for a in ApprovalGate(store_for(p.id)).list():
+                item = {"project": p, "approval": a, "describe": describe(a["data"]["action"], lang),
+                        "decided_at": time.strftime("%Y-%m-%d %H:%M",
+                                                    time.localtime(a["data"].get("decided_at") or a["created"]))}
+                (rows if a["status"] == ApprovalStatus.PENDING.value else recent).append(item)
+        recent.sort(key=lambda r: r["approval"]["data"].get("decided_at") or 0, reverse=True)
+        return render(request, "approvals.html", session, rows=rows, recent=recent[:20])
 
     @app.post("/approvals/{pid}/{aid}")
     def decide(request: Request, pid: str, aid: str, csrf: str = Form(""), decision: str = Form("")):
@@ -427,9 +467,17 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             return to_login()
         if not auth.csrf_ok(session, csrf) or decision not in ("approve", "reject"):
             return back("/approvals", "csrf_failed")
-        ApprovalGate(store_for(registry.get(pid).id)).decide(aid, approve=decision == "approve",
-                                                              actor="owner:dashboard")
-        return back("/approvals", "approved" if decision == "approve" else "rejected")
+        project = registry.get(pid)
+        store = store_for(project.id)
+        try:
+            ApprovalGate(store).decide(aid, approve=decision == "approve", actor="owner:dashboard")
+        except Exception as exc:  # noqa: BLE001 - e.g. already decided or expired
+            return render(request, "error.html", session, error=str(exc), status_code=409)
+        if decision != "approve":
+            return back("/approvals", "rejected")
+        creds = vault.project(project.id)
+        run_job(lambda: execute_approved(aid, project, store, creds, http_client_factory))
+        return back("/approvals", "approved_running")
 
     @app.get("/incidents", response_class=HTMLResponse)
     def incidents_page(request: Request):

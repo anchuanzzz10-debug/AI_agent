@@ -1,30 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ t('pending_approvals') }}</h1>
+<h1>🛡️ {{ t('pending_approvals') }}</h1>
 <p class="muted small">{{ t('approvals_note') }}</p>
+
 {% if not rows %}
-  <div class="card muted">{{ t('none') }}</div>
+  <div class="card muted">✅ {{ t('none') }}</div>
 {% endif %}
 {% for row in rows %}
   {% set a = row.approval %}
-  <article class="card">
+  <article class="card approval risk-{{ a.data.risk }}">
     <div class="card-head">
-      <h2>{{ row.project.name }}</h2>
-      <span class="tag">{{ a.id }}</span>
+      <h2>{{ row.describe }}</h2>
+      <span class="status-pill {{ 'problem' if a.data.risk == 'high' else 'attention' if a.data.risk == 'medium' else 'healthy' }}">{{ t('risk') }}: {{ a.data.risk }}</span>
     </div>
-    <p><strong>{{ a.action }}</strong></p>
-    <p class="small">{{ t('reason') }}: {{ a.data.reason }} · {{ t('risk') }}: {{ a.data.risk }}</p>
-    <pre class="small">{{ a.data.action | tojson(indent=2) }}</pre>
+    <p class="small"><a href="/projects/{{ row.project.id }}">{{ row.project.name }}</a> · {{ a.id }}
+      {% if a.data.incident %} · 🚨 {{ a.data.incident }}{% endif %}</p>
+    <p class="small">{{ t('reason') }}: {{ a.data.reason }}</p>
+    <p class="small muted">{{ t('approve_what_happens') }}</p>
+    <details><summary>{{ t('details') }}</summary><pre class="small">{{ a.data.action | tojson(indent=2) }}</pre></details>
     <div class="actions">
       <form method="post" action="/approvals/{{ row.project.id }}/{{ a.id }}" class="inline" data-confirm="{{ t('approve_confirm') }}">
         <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="decision" value="approve">
-        <button class="btn primary" type="submit">{{ t('approve') }}</button>
+        <button class="btn primary" type="submit">✅ {{ t('approve') }}</button>
       </form>
       <form method="post" action="/approvals/{{ row.project.id }}/{{ a.id }}" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="decision" value="reject">
-        <button class="btn ghost" type="submit">{{ t('reject') }}</button>
+        <button class="btn ghost" type="submit">✖ {{ t('reject') }}</button>
       </form>
     </div>
   </article>
 {% endfor %}
+
+{% if recent %}
+<div class="section-head"><h2>🕘 {{ t('recent_decisions') }}</h2></div>
+{% for row in recent %}
+  {% set a = row.approval %}
+  {% set ex = a.data.execution or {} %}
+  {% set state = 'rejected' if a.status == 'rejected' else 'expired' if a.status == 'expired'
+                 else 'running' if ex.state == 'running' or (a.status == 'approved' and not ex)
+                 else ex.outcome or a.status %}
+  <article class="card approval result-{{ state }}">
+    <div class="card-head">
+      <h2>{{ row.describe }}</h2>
+      <span class="status-pill {{ 'healthy' if state == 'applied_verified' else 'attention' if state in ['running', 'refused_no_backup', 'rejected', 'expired'] else 'problem' }}">{{ t('ex_' ~ state) }}</span>
+    </div>
+    <p class="small"><a href="/projects/{{ row.project.id }}">{{ row.project.name }}</a> · {{ a.id }} · {{ row.decided_at }}
+      {% if a.data.incident %} · 🚨 {{ a.data.incident }}{% endif %}</p>
+    {% if ex.error %}<p class="small alert-text">{{ ex.error }}</p>{% endif %}
+    {% if ex.backup %}<p class="small muted">💾 {{ t('backup_label') }}: {{ '✅ ' ~ ex.backup.kind if ex.backup.ok else '❌ ' ~ ex.backup.reason }}</p>{% endif %}
+    {% for label, v in [('verification_label', ex.verification), ('rollback_label', ex.rollback_verification)] %}
+      {% if v %}
+      <details {{ 'open' if not v.passed }}>
+        <summary>{{ '✅' if v.passed else '❌' }} {{ t(label) }} ({{ v.checks|length }})</summary>
+        <ul class="results">{% for c in v.checks %}<li>{{ '✅' if c.status == 'ok' else '❌' }} <code>{{ c.name }}</code> {{ c.summary }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+    {% endfor %}
+  </article>
+{% endfor %}
+{% endif %}
 {% endblock %}

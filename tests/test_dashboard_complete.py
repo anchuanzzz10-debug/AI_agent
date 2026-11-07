@@ -148,9 +148,9 @@ def test_app_settings_require_health_address_when_check_is_on(env):
     assert 'id="health_path"' in html
 
 
-def test_approvals_page_is_honest_about_execution(env):
+def test_approvals_page_explains_what_approval_does(env):
     html = env["build"]().get("/approvals").text
-    assert "does not yet apply approved changes" in html
+    assert "A change only happens after you approve it" in html and "rolled back automatically" in html
 
 
 def test_only_the_configured_project_is_shown(env):
