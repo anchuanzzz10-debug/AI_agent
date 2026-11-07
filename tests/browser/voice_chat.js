@@ -17,17 +17,25 @@ function fakes(opts) {
       } else {
         window.SpeechRecognition = class {
           start() {
-            window.__recLangs.push(this.lang);
+            window.__recLangs.push(this.lang); window.__rec = this;
             setTimeout(() => {
               this.onstart && this.onstart();
-              if (o.error) { this.onerror && this.onerror({ error: o.error }); this.onend && this.onend(); return; }
-              const res = [{ transcript: o.say }]; res.isFinal = true;
-              this.onresult && this.onresult({ resultIndex: 0, results: [res] });
-              this.onend && this.onend();
+              if (o.error) { this.onerror && this.onerror({ error: o.error }); this.end(); return; }
+              const seq = o.results || [{ t: o.say, final: true }];
+              seq.forEach((r) => { const res = [{ transcript: r.t }]; res.isFinal = r.final;
+                                   this.onresult && this.onresult({ resultIndex: 0, results: [res] }); });
+              if (!o.hold) this.end();
             }, 30);
           }
-          stop() { this.onend && this.onend(); }
+          end() { if (this.__ended) return; this.__ended = true; this.onend && this.onend(); }
+          stop() { this.end(); }
         };
+      }
+      if (o.media === "silent") {
+        navigator.mediaDevices.getUserMedia = async () => {
+          const ctx = new AudioContext(); return ctx.createMediaStreamDestination().stream; };
+      } else if (o.media === "denied") {
+        navigator.mediaDevices.getUserMedia = async () => { const e = new Error("denied"); e.name = "NotAllowedError"; throw e; };
       }
       const voices = o.voices;
       Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
@@ -126,6 +134,50 @@ async function lastBotReply(page) {
     return { reply: await lastBotReply(page) };
   }));
 
+  out.push(await scenario(browser, "continuous_two_phrases",
+    { results: [{ t: "connectdocsmedia", final: true }, { t: "ചെക്ക് ചെയ്യൂ", final: true }], hold: true, voices: ML },
+    async (page) => {
+      await page.selectOption("#voice-lang", "ml-IN");
+      await page.click("#mic");
+      const reply = await lastBotReply(page);            // sent after ~1.5 s of silence
+      return { reply, mine: await page.$$eval(".msg.me", (els) => els.map((e) => e.textContent)) };
+    }));
+
+  out.push(await scenario(browser, "stop_mid_sentence",
+    { results: [{ t: "റിപ്പോർട്ട് തരൂ", final: false }], hold: true, voices: ML }, async (page) => {
+      await page.selectOption("#voice-lang", "ml-IN");
+      await page.click("#mic");
+      await page.waitForFunction(() => document.getElementById("chat-input").value !== "");
+      await page.click("#mic");                          // press again = done
+      const reply = await lastBotReply(page);
+      return { reply, mine: await page.$$eval(".msg.me", (els) => els.map((e) => e.textContent)) };
+    }));
+
+  out.push(await scenario(browser, "no_speech_hint", { error: "no-speech", voices: ML }, async (page) => {
+    await page.click("#mic");
+    await page.waitForFunction(() => !document.getElementById("voice-note").hidden);
+    return { note: await page.textContent("#voice-note") };
+  }));
+
+  for (const [name, media] of [["mic_test_silent", "silent"], ["mic_test_denied", "denied"]]) {
+    out.push(await scenario(browser, name, { say: "x", voices: ML, media }, async (page) => {
+      await page.click("#mic-test");
+      await page.waitForFunction(() => /[❌✅]|അനുമതി/.test(document.getElementById("voice-note").textContent), null, { timeout: 15000 });
+      return { note: await page.textContent("#voice-note") };
+    }));
+  }
   await browser.close();
+
+  // Real getUserMedia with Chromium's fake microphone (plays a test tone).
+  const micBrowser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
+  out.push(await scenario(micBrowser, "mic_test_sound", { say: "x", voices: ML }, async (page) => {
+    const visible = await page.isVisible("#mic-test");
+    await page.click("#mic-test");
+    const meterShown = await page.waitForSelector("#mic-meter:not([hidden])").then(() => true);
+    await page.waitForFunction(() => /✅|❌/.test(document.getElementById("voice-note").textContent), null, { timeout: 15000 });
+    return { visible, meterShown, note: await page.textContent("#voice-note"),
+             peak: Number(await page.getAttribute(".chat", "data-mic-test-peak")) };
+  }));
+  await micBrowser.close();
   console.log(JSON.stringify(out));
 })().catch((e) => { console.error(e); process.exit(1); });

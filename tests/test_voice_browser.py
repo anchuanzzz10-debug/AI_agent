@@ -108,3 +108,21 @@ def test_voice_chat_in_browser(server):
     assert unsupported["micHidden"] is True and "Chrome" in unsupported["note"]
 
     assert "അനുമതികൾ" in results["voice_cannot_approve"]["reply"]    # sent to the Approvals page
+
+    # keeps listening across phrases, then sends after a short silence
+    cont = results["continuous_two_phrases"]
+    assert cont["mine"] == ["connectdocsmedia ചെക്ക് ചെയ്യൂ"] and "പരിശോധന തുടങ്ങി" in cont["reply"]
+
+    # pressing the mic again sends what was heard so far
+    mid = results["stop_mid_sentence"]
+    assert mid["mine"] == ["റിപ്പോർട്ട് തരൂ"] and "പ്രശ്നങ്ങൾ 0" in mid["reply"]
+
+    assert "മൈക്ക് പരിശോധന" in results["no_speech_hint"]["note"]
+
+    # microphone test: real getUserMedia with Chromium's fake microphone (test tone)
+    sound = results["mic_test_sound"]
+    assert sound["visible"] and sound["meterShown"]
+    assert sound["note"].startswith("✅") and sound["peak"] > 0.05
+    assert "മൈക്രോഫോണുകൾ" in sound["note"]
+    assert results["mic_test_silent"]["note"].startswith("❌ ശബ്ദം ഒട്ടും കേട്ടില്ല")
+    assert "അനുമതി" in results["mic_test_denied"]["note"]

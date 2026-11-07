@@ -2,7 +2,8 @@
 {% block content %}
 {% set voice_keys = ['voice_listening', 'voice_unsupported', 'voice_insecure', 'voice_err_not-allowed',
                      'voice_err_no-speech', 'voice_err_network', 'voice_err_language-not-supported',
-                     'voice_err_other', 'voice_no_ml_voice', 'voice_mic'] %}
+                     'voice_err_other', 'voice_no_ml_voice', 'voice_mic', 'voice_test_running',
+                     'voice_test_ok', 'voice_test_silent', 'voice_test_nomic', 'voice_test_devices'] %}
 <section class="chat card" data-csrf="{{ csrf }}" data-error="{{ t('error') }}" data-ui-lang="{{ lang }}"
          {% for k in voice_keys %}data-{{ k|replace('_', '-') }}="{{ t(k) }}" {% endfor %}>
   <div class="voice-bar">
@@ -13,7 +14,9 @@
       </select>
     </label>
     <label class="check small"><input type="checkbox" id="speak-replies"> {{ t('voice_speak_replies') }}</label>
+    <button class="btn small ghost" type="button" id="mic-test" hidden>🎙️ {{ t('voice_test_button') }}</button>
   </div>
+  <div class="mic-meter" id="mic-meter" hidden><div class="mic-meter-fill" id="mic-meter-fill"></div></div>
   <p class="voice-note small muted" id="voice-note" hidden></p>
   <div class="messages" id="messages" aria-live="polite">
     <div class="msg bot">{{ t('chat_intro') }}</div>

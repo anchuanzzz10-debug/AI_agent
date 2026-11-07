@@ -163,6 +163,8 @@
 
   var recognition = null;
   var listening = false;
+  var SILENCE_MS = 1500;     // stop this long after the last recognised words
+  var MAX_MS = 20000;        // never listen longer than this
 
   function stopListening() {
     listening = false;
@@ -171,44 +173,108 @@
   }
 
   micBtn.addEventListener("click", function () {
-    if (listening && recognition) { recognition.stop(); return; }
+    if (listening && recognition) { recognition.stop(); return; }   // press again = done
     if (synth) synth.cancel();             // don't let the agent hear itself
     showNote("");
     recognition = new Recognition();
-    recognition.lang = voiceLang.value;
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    recognition.maxAlternatives = 1;
+    var rec = recognition;
+    rec.lang = voiceLang.value;
+    rec.interimResults = true;
+    rec.continuous = true;                 // keep listening while the user speaks
+    rec.maxAlternatives = 1;
     var finalText = "";
+    var interimText = "";
+    var sent = false;
+    var silenceTimer = null;
+    var maxTimer = null;
 
-    recognition.onstart = function () {
+    function finish() { try { rec.stop(); } catch (e) { /* already stopped */ } }
+
+    rec.onstart = function () {
       listening = true;
       micBtn.classList.add("listening");
       if (!input.getAttribute("data-placeholder")) input.setAttribute("data-placeholder", input.placeholder);
       input.placeholder = text("voice-listening");
+      maxTimer = setTimeout(finish, MAX_MS);
     };
-    recognition.onresult = function (event) {
-      var interim = "";
+    rec.onresult = function (event) {
+      interimText = "";
       for (var i = event.resultIndex; i < event.results.length; i++) {
         var piece = event.results[i][0].transcript;
-        if (event.results[i].isFinal) { finalText += piece; } else { interim += piece; }
+        if (event.results[i].isFinal) { finalText += piece + " "; } else { interimText += piece; }
       }
-      input.value = (finalText + interim).trim();
+      input.value = (finalText + interimText).trim();
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(finish, SILENCE_MS);
     };
-    recognition.onerror = function (event) {
-      var key = "voice-err-" + event.error;
-      var msg = chat.getAttribute("data-" + key);
+    rec.onerror = function (event) {
+      if (event.error === "aborted") return;
+      var msg = chat.getAttribute("data-voice-err-" + event.error);
       showNote(msg || (text("voice-err-other") + " (" + event.error + ")"));
-      stopListening();
     };
-    recognition.onend = function () {
+    rec.onend = function () {
+      clearTimeout(silenceTimer);
+      clearTimeout(maxTimer);
       stopListening();
-      var said = finalText.trim();
-      if (said) {
+      // Use words still pending as interim if the user pressed stop mid-sentence.
+      var said = (finalText + interimText).trim();
+      if (said && !sent) {
+        sent = true;
         input.value = "";
         send(said);                       // the transcript is shown as your message
       }
     };
-    try { recognition.start(); } catch (e) { showNote(text("voice-err-other")); stopListening(); }
+    try { rec.start(); } catch (e) { showNote(text("voice-err-other")); stopListening(); }
   });
+
+  // ------------------------------------------------------ microphone test
+  var testBtn = document.getElementById("mic-test");
+  var meter = document.getElementById("mic-meter");
+  var meterFill = document.getElementById("mic-meter-fill");
+  if (testBtn && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    testBtn.hidden = false;
+    testBtn.addEventListener("click", function () {
+      testBtn.disabled = true;
+      showNote(text("voice-test-running"));
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        var track = stream.getAudioTracks()[0];
+        var label = (track && track.label) || "?";
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        var ctx = new Ctx();
+        var analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        var buf = new Uint8Array(analyser.fftSize);
+        var peak = 0;
+        meter.hidden = false;
+        var timer = setInterval(function () {
+          analyser.getByteTimeDomainData(buf);
+          var sum = 0;
+          for (var i = 0; i < buf.length; i++) { var v = (buf[i] - 128) / 128; sum += v * v; }
+          var level = Math.min(1, Math.sqrt(sum / buf.length) * 4);
+          peak = Math.max(peak, level);
+          meterFill.style.width = Math.round(level * 100) + "%";
+        }, 50);
+        setTimeout(function () {
+          clearInterval(timer);
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          try { ctx.close(); } catch (e) { /* ignore */ }
+          meter.hidden = true;
+          testBtn.disabled = false;
+          navigator.mediaDevices.enumerateDevices().then(function (devices) {
+            var mics = devices.filter(function (d) { return d.kind === "audioinput"; }).length;
+            var key = peak > 0.05 ? "voice-test-ok" : "voice-test-silent";
+            showNote(text(key).replace("{mic}", label) + " " + text("voice-test-devices").replace("{n}", mics));
+            chat.setAttribute("data-mic-test-peak", peak.toFixed(3));
+          });
+        }, 5000);
+      }).catch(function (err) {
+        testBtn.disabled = false;
+        var name = err && err.name;
+        showNote(name === "NotAllowedError" ? text("voice-err-not-allowed")
+               : name === "NotFoundError" ? text("voice-test-nomic")
+               : text("voice-err-other") + " (" + name + ")");
+      });
+    });
+  }
 })();

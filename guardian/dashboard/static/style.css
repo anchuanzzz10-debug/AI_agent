@@ -120,6 +120,8 @@ ol.steps li { margin-bottom: .4rem; overflow-wrap: anywhere; }
 .voice-lang select { width: auto; min-height: 40px; }
 .voice-bar label.check { min-height: 40px; }
 .voice-note { margin: 0; padding: .5rem 1rem; background: var(--flash); border-bottom: 1px solid var(--border); }
+.mic-meter { height: 10px; margin: .5rem 1rem 0; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+.mic-meter-fill { height: 100%; width: 0; background: var(--ok); transition: width 50ms linear; }
 .btn.mic { min-width: 48px; padding: 0; font-size: 1.3rem; }
 .btn.mic.listening { background: var(--fail); border-color: var(--fail); color: #fff; animation: pulse 1.2s infinite; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, .45); } 50% { box-shadow: 0 0 0 10px rgba(180, 35, 24, 0); } }
