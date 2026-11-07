@@ -159,9 +159,14 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             results = [r for r in results if r["category"] != "seo"]
         counts = {s: sum(r["status"] == s for r in results) for s in ("fail", "warn", "ok", "not_checked")}
         age_min = int((clock() - ts) // 60) if ts else None
+        judged = counts["fail"] + counts["warn"] + counts["ok"]
+        score = round(100 * (counts["ok"] + 0.5 * counts["warn"]) / judged) if judged else None
+        health = ("problem" if counts["fail"] else "attention" if counts["warn"]
+                  else "healthy" if counts["ok"] else "new")
         return {"project": project, "run_id": run_id,
                 "checked_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else None,
                 "age_min": age_min, "stale": age_min is not None and age_min > STALE_AFTER_MIN,
+                "score": score, "health": health,
                 "results": results, "counts": counts, "running": project.id in running,
                 "incidents": IncidentManager(store).list(),
                 "pending": ApprovalGate(store).list(ApprovalStatus.PENDING)}
@@ -246,9 +251,10 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                   "warn": sum(c["counts"]["warn"] for c in cards),
                   "incidents": sum(len(c["incidents"]) for c in cards),
                   "pending": sum(len(c["pending"]) for c in cards),
-                  "stale": [c["project"].name for c in cards if c["stale"]]}
+                  "stale": [c["project"].name for c in cards if c["stale"]],
+                  "live": any(c["checked_at"] and not c["stale"] for c in cards)}
         return render(request, "overview.html", session, cards=cards, totals=totals,
-                      stale_after=STALE_AFTER_MIN)
+                      stale_after=STALE_AFTER_MIN, today=time.strftime("%d-%m-%Y", time.localtime(clock())))
 
     @app.get("/projects/new", response_class=HTMLResponse)
     def new_project_page(request: Request):

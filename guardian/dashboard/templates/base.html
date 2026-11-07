@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
-<body>
+<body class="{{ 'app' if csrf else 'auth' }}">
 {% if csrf %}
 <header class="topbar">
-  <a class="brand" href="/">🛡️ <span>{{ t('app_title') }}</span></a>
+  <a class="brand" href="/"><span class="logo">🛡️</span><span>{{ t('app_title') }}</span></a>
   <div class="topbar-actions">
     <a class="pill" href="/lang/{{ 'en' if lang == 'ml' else 'ml' }}?next={{ path }}">{{ t('language') }}</a>
     <form method="post" action="/logout" class="inline">

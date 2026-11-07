@@ -1,52 +1,81 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head">
-  <h1>{{ t('sites_and_apps') }}</h1>
-  <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
-</div>
+<section class="hero">
+  <div class="hero-text">
+    <p class="hero-date">{{ today }}</p>
+    <h1>{{ t('hero_hello') }}</h1>
+    <p class="hero-status">
+      {% if not cards %}{{ t('hero_empty') }}
+      {% elif totals.fail %}🔴 {{ t('hero_attention').replace('{n}', totals.fail|string) }}
+      {% elif totals.warn %}🟡 {{ t('hero_warn').replace('{n}', totals.warn|string) }}
+      {% else %}🟢 {{ t('hero_all_good') }}{% endif %}
+    </p>
+    {% if cards %}
+      {% if totals.stale %}<span class="live-pill stale"><span class="dot"></span>{{ t('live_stale') }}</span>
+      {% elif totals.live %}<span class="live-pill"><span class="dot"></span>{{ t('live') }}</span>{% endif %}
+    {% endif %}
+  </div>
+  <a class="btn hero-btn" href="/projects/new">＋ {{ t('add_project') }}</a>
+</section>
+
 {% if cards %}
 <div class="summary-bar">
-  <div class="stat"><span class="num">{{ totals.projects }}</span><span class="lbl">{{ t('sum_projects') }}</span></div>
-  <div class="stat {{ 'bad' if totals.fail }}"><span class="num">{{ totals.fail }}</span><span class="lbl">{{ t('sum_problems') }}</span></div>
-  <div class="stat {{ 'warn' if totals.warn }}"><span class="num">{{ totals.warn }}</span><span class="lbl">{{ t('sum_warnings') }}</span></div>
-  <a class="stat {{ 'bad' if totals.incidents }}" href="/incidents"><span class="num">{{ totals.incidents }}</span><span class="lbl">{{ t('sum_incidents') }}</span></a>
-  <a class="stat {{ 'warn' if totals.pending }}" href="/approvals"><span class="num">{{ totals.pending }}</span><span class="lbl">{{ t('sum_pending') }}</span></a>
+  <div class="stat s-sites"><span class="ico">🌐</span><span class="num">{{ totals.projects }}</span><span class="lbl">{{ t('sum_projects') }}</span></div>
+  <div class="stat s-fail {{ 'bad' if totals.fail }}"><span class="ico">⛔</span><span class="num">{{ totals.fail }}</span><span class="lbl">{{ t('sum_problems') }}</span></div>
+  <div class="stat s-warn {{ 'warn' if totals.warn }}"><span class="ico">⚠️</span><span class="num">{{ totals.warn }}</span><span class="lbl">{{ t('sum_warnings') }}</span></div>
+  <a class="stat s-inc {{ 'bad' if totals.incidents }}" href="/incidents"><span class="ico">🚨</span><span class="num">{{ totals.incidents }}</span><span class="lbl">{{ t('sum_incidents') }}</span></a>
+  <a class="stat s-appr {{ 'warn' if totals.pending }}" href="/approvals"><span class="ico">🛡️</span><span class="num">{{ totals.pending }}</span><span class="lbl">{{ t('sum_pending') }}</span></a>
 </div>
 {% if totals.stale %}<div class="flash error" role="alert">{{ t('stale_banner').replace('{m}', stale_after|string) }}</div>{% endif %}
 {% endif %}
+
+<div class="section-head">
+  <h2>{{ t('sites_and_apps') }}</h2>
+</div>
+
 {% if not cards %}
-  <div class="card">
+  <div class="card empty-card">
+    <div class="empty-ico">🌐</div>
     <p class="muted">{{ t('no_projects') }}</p>
     <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
   </div>
 {% endif %}
+
 <div class="grid">
 {% for c in cards %}
   {% set p = c.project %}
-  <article class="card project-card status-{{ 'fail' if c.counts.fail else ('warn' if c.counts.warn else ('ok' if c.run_id else 'none')) }}">
-    <div class="card-head">
-      <h2><a href="/projects/{{ p.id }}">{{ p.name }}</a></h2>
-      <span class="tag">{{ t('type_' ~ p.type.value) }}</span>
+  <article class="card project-card health-{{ c.health }}">
+    <div class="pc-top">
+      <div class="ring" data-score="{{ c.score if c.score is not none else 0 }}" title="{{ t('health_score') }}">
+        <span>{{ c.score ~ '%' if c.score is not none else '–' }}</span>
+      </div>
+      <div class="pc-title">
+        <h3><a href="/projects/{{ p.id }}">{{ p.name }}</a></h3>
+        <p class="muted small url">{{ p.url }}</p>
+        <div class="pills">
+          <span class="status-pill {{ c.health }}">{{ t('status_' ~ c.health) }}</span>
+          <span class="tag">{{ t('type_' ~ p.type.value) }}</span>
+          {% if p.enabled('seo') %}<span class="tag seo">SEO</span>{% endif %}
+        </div>
+      </div>
     </div>
-    <p class="muted small">{{ p.url }}</p>
     <div class="counts">
       <span class="count fail" title="{{ t('problems') }}">❌ {{ c.counts.fail }}</span>
       <span class="count warn" title="{{ t('warnings') }}">⚠️ {{ c.counts.warn }}</span>
       <span class="count ok" title="{{ t('ok') }}">✅ {{ c.counts.ok }}</span>
       <span class="count nc" title="{{ t('not_checked') }}">⏸️ {{ c.counts.not_checked }}</span>
     </div>
-    <p class="small">{{ t('last_check') }}: {{ c.checked_at or t('never_checked') }}
-      {% if c.age_min is not none %}<span class="muted">({{ t('checked_now') if c.age_min < 1 else t('checked_ago').replace('{n}', c.age_min|string) }})</span>{% endif %}
-      {% if p.enabled('seo') %}· SEO ✓{% endif %}</p>
+    <p class="small when">🕘 {{ t('last_check') }}: {{ c.checked_at or t('never_checked') }}
+      {% if c.age_min is not none %}<span class="muted">({{ t('checked_now') if c.age_min < 1 else t('checked_ago').replace('{n}', c.age_min|string) }})</span>{% endif %}</p>
     {% if c.stale %}<p class="small alert-text">{{ t('stale_card').replace('{n}', c.age_min|string) }}</p>{% endif %}
     {% if c.incidents %}<p class="small alert-text">🚨 {{ t('open_incidents') }}: {{ c.incidents|length }}</p>{% endif %}
-    {% if c.pending %}<p class="small"><a href="/approvals">✅ {{ t('pending_approvals') }}: {{ c.pending|length }}</a></p>{% endif %}
+    {% if c.pending %}<p class="small"><a href="/approvals">🛡️ {{ t('pending_approvals') }}: {{ c.pending|length }}</a></p>{% endif %}
     <div class="actions">
       <form method="post" action="/projects/{{ p.id }}/check" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="btn" type="submit" {{ 'disabled' if c.running }}>{{ t('checking') if c.running else t('check_now') }}</button>
+        <button class="btn primary" type="submit" {{ 'disabled' if c.running }}>{{ t('checking') if c.running else t('check_now') }}</button>
       </form>
-      <a class="btn ghost" href="/projects/{{ p.id }}">{{ t('details') }}</a>
+      <a class="btn ghost" href="/projects/{{ p.id }}">{{ t('details') }} →</a>
     </div>
   </article>
 {% endfor %}

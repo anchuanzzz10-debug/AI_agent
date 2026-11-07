@@ -35,6 +35,12 @@
     });
   }
 
+  // Health rings: set the arc from data-score.
+  Array.prototype.forEach.call(document.querySelectorAll(".ring[data-score]"), function (el) {
+    var score = Math.max(0, Math.min(100, parseInt(el.getAttribute("data-score"), 10) || 0));
+    el.style.setProperty("--score", score);
+  });
+
   // Health-check field only matters for software applications.
   var typeSelect = document.getElementById("type");
   var healthField = document.getElementById("health-field");
