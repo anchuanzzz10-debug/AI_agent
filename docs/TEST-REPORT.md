@@ -39,6 +39,18 @@ Run with an in-memory credential store and a recorded fake `schtasks`, because t
 - **AI (simulated Ollama model):** answers built from tool results, `<think>` text removed, no approve or credential tools, an invented "approve" tool is refused, invalid project IDs refused, string arguments handled, the SEO switch respected, tool rounds capped, an unavailable model reported honestly, one question at a time, the model server must be on this machine, dashboard routing and AI status, and the dashboard staying responsive while the AI thinks (tested on a real server; the test fails without the fix).
 - **Not verifiable here:** real speech recognition of your voice, real Malayalam speech output, and the real AI model's quality and speed. Ollama, its model registry and Hugging Face are blocked in the build sandbox.
 
+## Verified on the owner's laptop (Windows 11, Lenovo, 2026-11-07)
+
+| Item | Result |
+|---|---|
+| Install, `pytest` | ✅ 108 passed, 1 skipped (dashboard version); later versions installed cleanly |
+| Vault passphrase in Windows Credential Manager | ✅ `WinVaultKeyring`, stored, no plain-text variable |
+| First real site check (`connectdocsmedia.com`) | ✅ 0 problems, 1 warning (missing `X-Content-Type-Options`) |
+| Dashboard on the laptop, Malayalam/English | ✅ Used in Chrome |
+| AI brain (Ollama `qwen3:8b`) | ✅ Runs and answers. ⚠️ Malayalam readable but with errors and invented claims about its own abilities, so capability questions now use a fixed answer and the prompt was tightened |
+| Microphone (Intel Smart Sound array) | ❌ At first "No sound at all": a laptop microphone setting, not the agent. The owner later reported it working; details not recorded |
+| Auto-start (Task Scheduler) | ✅ Task created and running, logon trigger, runs on battery, no time limit, restart on failure; background run unlocked the vault from Credential Manager and finished with exit 0. ⏳ Behaviour after a real Windows login not yet confirmed |
+
 ## Real-network tests (limited by the sandbox)
 - Command-line flow run end to end: init, add projects, check, report, incidents, the SEO toggle and the `lang` command.
 - The real run found and fixed 3 honesty bugs:
