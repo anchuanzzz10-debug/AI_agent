@@ -37,6 +37,11 @@ def test_detect_language(text, lang):
     ("ഇഷ്യൂസ് പറയൂ", "list_incidents"),
     ("ഹെൽപ്പ്", "help"),
     ("സമ്മറി തരൂ", "status_report"),
+    # real messages from the laptop test: answered with the fixed, accurate capability text
+    ("നമസ്കാരം. നീ എന്റെ AI Agent ആണ്. നിന്റെ കഴിവുകളും പരിമിതികളും മലയാളത്തിൽ വിശദീകരിക്കുക.", "about"),
+    ("hi nigal aran", "about"),
+    ("who are you", "about"),
+    ("what can you do", "help"),
 ])
 def test_intents(text, intent):
     assert parse_command(text, PROJECTS).name == intent

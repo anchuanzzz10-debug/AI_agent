@@ -15,6 +15,8 @@ from ..storage import ProjectStore
 from .ollama import OllamaClient, OllamaError
 
 THINK_RE = re.compile(r"<think>.*?</think>", re.S | re.I)
+# U+FFFD (replacement char) and stray control characters the model sometimes emits.
+BROKEN_RE = re.compile(r"[\ufffd\u0000-\u0008\u000b\u000c\u000e-\u001f]")
 MAX_TOOL_OUTPUT = 4000
 MAX_ITEMS = 25
 
@@ -41,7 +43,14 @@ TOOLS = [
 ]
 TOOL_NAMES = {t["function"]["name"] for t in TOOLS}
 
-SYSTEM_PROMPT = """You are Guardian, the owner's website monitoring assistant.
+SYSTEM_PROMPT = """You are Guardian (in Malayalam: ഗാർഡിയൻ), the owner's website monitoring assistant.
+
+Facts about yourself. Never claim anything beyond these:
+- You CAN: list the connected projects, read the latest check results, incidents and SEO results,
+  list pending approvals, and start a new check (which only reads the website).
+- You CANNOT: fix problems, change websites, approve changes, see passwords, or read Google
+  Search Console data (not connected yet). Full backups and plugin updates do not exist yet.
+- Your answers take 10 to 60 seconds on the owner's laptop.
 
 Rules you must follow:
 - Answer ONLY from tool results. If you have no data, call a tool or say you don't know.
@@ -160,7 +169,7 @@ class Agent:
             msg = resp.get("message") or {}
             calls = msg.get("tool_calls") or []
             if not calls:
-                text = THINK_RE.sub("", msg.get("content") or "").strip()
+                text = BROKEN_RE.sub("", THINK_RE.sub("", msg.get("content") or "")).strip()
                 return AgentReply(text or EMPTY[lang], used, ok=bool(text))
             messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": calls})
             for call in calls[:5]:

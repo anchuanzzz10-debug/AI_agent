@@ -54,6 +54,13 @@ INTENTS: dict[str, dict[str, list[str]]] = {
         "manglish": ["backup", "back up"],
         "en": ["backup", "back up"],
     },
+    "about": {
+        "ml": ["കഴിവുകൾ", "കഴിവുകളും", "പരിമിതികൾ", "പരിമിതികളും", "നീ ആരാണ്", "നിങ്ങൾ ആരാണ്",
+               "ആരാണ് നീ", "ആരാണ് നിങ്ങൾ"],
+        "manglish": ["nigal aran", "ningal aran", "ningal aranu", "ningal aaranu", "nee aranu",
+                     "nee aaranu", "kazhivukal", "parimithikal"],
+        "en": ["who are you", "what are you", "your capabilities", "your limitations", "your limits"],
+    },
     "help": {
         "ml": ["സഹായം", "എന്തൊക്കെ ചെയ്യാം", "ഹെൽപ്പ്", "ഹെൽപ്"],
         "manglish": ["sahayam", "help"],
@@ -64,7 +71,7 @@ INTENTS: dict[str, dict[str, list[str]]] = {
 APPROVAL_ID_RE = re.compile(r"\bapr-[0-9a-f]{8}\b", re.I)
 # reject/approve conflict: if both match, reject wins (safer).
 PRIORITY = ["reject", "approve", "backup", "seo_report", "list_incidents", "run_check",
-            "status_report", "help"]
+            "status_report", "about", "help"]
 
 
 @dataclass

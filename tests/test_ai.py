@@ -265,3 +265,27 @@ def test_dashboard_stays_responsive_while_ai_thinks(world, vault):
     finally:
         gate.set()
         server.should_exit = True
+
+
+def test_prompt_lists_real_capabilities_and_limits(world):
+    fake = FakeOllama([{"content": "ok"}])
+    world["agent"](fake).answer("hello", "ml")
+    system = fake.requests[0]["messages"][0]["content"]
+    assert "ഗാർഡിയൻ" in system and "You CANNOT: fix problems" in system
+    assert "Search Console" in system and "10 to 60 seconds" in system
+
+
+def test_broken_characters_removed(world):
+    fake = FakeOllama([{"content": "അപ്പ്�ോവേൽസ് page\x07"}])
+    assert world["agent"](fake).answer("x", "ml").text == "അപ്പ്ോവേൽസ് page"
+
+
+def test_capability_question_never_reaches_ai(world, vault):
+    from guardian.dashboard.chat import ChatContext, respond
+    fake = FakeOllama([{"content": "I can fix everything and check Google!"}])
+    agent = world["agent"](fake)
+    ctx = ChatContext(world["reg"].load_all(), lambda pid: ProjectStore(world["home"], pid),
+                      lambda pid: True, agent)
+    r = respond("നിന്റെ കഴിവുകളും പരിമിതികളും മലയാളത്തിൽ വിശദീകരിക്കുക", ctx)
+    assert r["intent"] == "about" and r["source"] == "commands" and fake.requests == []
+    assert "കഴിയാത്തത്" in r["reply"] and "Search Console" in r["reply"]

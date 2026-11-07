@@ -87,6 +87,34 @@ HELP = {
 }
 
 
+ABOUT = {
+    "ml": ("ഞാൻ ഗാർഡിയൻ (Guardian), നിങ്ങളുടെ website നിരീക്ഷണ സഹായി.\n\n"
+           "എനിക്ക് ചെയ്യാൻ കഴിയുന്നത്:\n"
+           "• നിങ്ങളുടെ websites-ഉം app-ഉം പരിശോധിക്കുക: site തുറക്കുന്നുണ്ടോ, വേഗത, error സന്ദേശങ്ങൾ, SSL, സുരക്ഷ\n"
+           "• SEO ഓൺ ആണെങ്കിൽ: robots.txt, noindex, title, description, sitemap\n"
+           "• പരിശോധനാ ഫലങ്ങളും തുറന്ന പ്രശ്നങ്ങളും മലയാളത്തിലോ English-ലോ പറഞ്ഞുതരിക\n"
+           "• നിങ്ങൾ അനുമതി നൽകുന്ന മാറ്റങ്ങൾ backup എടുത്ത ശേഷം മാത്രം ചെയ്യുക, പിന്നെ ഫലം പരിശോധിക്കുക\n\n"
+           "എനിക്ക് ചെയ്യാൻ കഴിയാത്തത്:\n"
+           "• നിങ്ങളുടെ അനുമതി ഇല്ലാതെ ഒന്നും മാറ്റാൻ\n"
+           "• passwords കാണാൻ, അനുമതി നൽകാൻ\n"
+           "• Google Search Console (indexing, keywords) ഇതുവരെ ബന്ധിപ്പിച്ചിട്ടില്ല\n"
+           "• പൂർണ്ണ backup, plugin/theme updates ഇതുവരെ ഇല്ല\n"
+           "• AI മറുപടിക്ക് ലാപ്ടോപ്പിൽ 10–60 സെക്കൻഡ് എടുക്കും, ചിലപ്പോൾ തെറ്റുകൾ ഉണ്ടാകാം"),
+    "en": ("I'm Guardian, your website monitoring assistant.\n\n"
+           "What I can do:\n"
+           "• Check your websites and app: reachability, speed, error messages, SSL, security\n"
+           "• With SEO on: robots.txt, noindex, title, description, sitemap\n"
+           "• Explain results and open problems in Malayalam or English\n"
+           "• Make changes only after your approval, with a backup first, then verify the result\n\n"
+           "What I can't do:\n"
+           "• Change anything without your approval\n"
+           "• See passwords or approve changes\n"
+           "• Google Search Console (indexing, keywords) isn't connected yet\n"
+           "• Full backups and plugin/theme updates aren't available yet\n"
+           "• AI answers take 10–60 seconds on the laptop and can contain mistakes"),
+}
+
+
 def respond(message: str, ctx: ChatContext, preferred_lang: str | None = None) -> dict:
     message = (message or "").strip()[:500]
     if not message:
@@ -108,6 +136,8 @@ def _dispatch(name: str, project: ProjectConfig | None, ctx: ChatContext, lang: 
     ml = lang == "ml"
     if not ctx.projects and name not in ("help", "unknown"):
         return "ഇതുവരെ പ്രോജക്റ്റുകൾ ഇല്ല. ആദ്യം ഒന്ന് ചേർക്കുക." if ml else "No projects yet. Add one first."
+    if name == "about":
+        return ABOUT[lang]
     if name == "help":
         return HELP[lang]
     if name == "status_report":
