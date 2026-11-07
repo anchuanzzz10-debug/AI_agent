@@ -13,6 +13,7 @@
     guardian voice status | voice eval --manifest FILE [--provider faster-whisper --model medium]
     guardian passphrase store | status | remove     (Windows Credential Manager)
     guardian autostart install [--interval 5] | start | stop | status | remove
+    guardian dashboard password | serve [--host 127.0.0.1 --port 8765 --allow-remote]
 """
 
 from __future__ import annotations
@@ -187,6 +188,36 @@ def cmd_passphrase(args) -> int:
     return 0
 
 
+def cmd_dashboard(args) -> int:
+    from .dashboard import auth as dash_auth
+    from .dashboard.app import is_loopback
+    home = guardian_home()
+    if args.action == "password":
+        first = getpass.getpass("New dashboard password (min 10 characters): ")
+        if getpass.getpass("Repeat: ") != first:
+            raise VaultError("Passwords do not match")
+        try:
+            dash_auth.set_password(home, first)
+        except dash_auth.AuthError as exc:
+            raise VaultError(str(exc)) from exc
+        print("Dashboard password set (stored as a scrypt hash, not plain text).")
+        return 0
+    # serve
+    if not dash_auth.password_is_set(home):
+        raise VaultError("Set a dashboard password first: guardian dashboard password")
+    if not is_loopback(args.host) and not args.allow_remote:
+        raise VaultError(f"Refusing to listen on {args.host}: other devices could reach the dashboard. "
+                         "Use your Tailscale address with --allow-remote (see README), or keep 127.0.0.1.")
+    import uvicorn
+    from .dashboard.app import create_app
+    app = create_app(home, config_dir(), _vault())
+    if not is_loopback(args.host):
+        print(f"WARNING: listening on {args.host}. Only do this on a private network such as Tailscale.")
+    print(f"Dashboard: http://{'127.0.0.1' if is_loopback(args.host) else args.host}:{args.port}  (Ctrl+C to stop)")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning", server_header=False)
+    return 0
+
+
 def cmd_autostart(args) -> int:
     home, config = guardian_home(), config_dir()
     if args.action == "install":
@@ -336,6 +367,14 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("action", choices=["install", "start", "stop", "status", "remove"])
     au.add_argument("--interval", type=float, default=5, metavar="MINUTES")
     au.set_defaults(fn=cmd_autostart)
+
+    db = sub.add_parser("dashboard", help="web dashboard (Malayalam / English)")
+    db.add_argument("action", choices=["password", "serve"])
+    db.add_argument("--host", default="127.0.0.1")
+    db.add_argument("--port", type=int, default=8765)
+    db.add_argument("--allow-remote", action="store_true",
+                    help="allow a non-local address (use only with Tailscale)")
+    db.set_defaults(fn=cmd_dashboard)
     return ap
 
 

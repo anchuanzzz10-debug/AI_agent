@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('add_project') }}</h1>
+<form method="post" action="/projects/new" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="id">{{ t('project_id') }}</label>
+  <input id="id" name="id" value="{{ form.id or '' }}" required pattern="[a-z0-9][a-z0-9-]{1,40}" autocapitalize="none" autocomplete="off" spellcheck="false">
+  <p class="muted small">{{ t('project_id_help') }}</p>
+
+  <label for="name">{{ t('name') }}</label>
+  <input id="name" name="name" value="{{ form.name or '' }}">
+
+  <label for="type">{{ t('type') }}</label>
+  <select id="type" name="type">
+    {% for ty in ['wordpress', 'website', 'application'] %}
+      <option value="{{ ty }}" {{ 'selected' if form.type == ty }}>{{ t('type_' ~ ty) }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="url">{{ t('url') }}</label>
+  <input id="url" name="url" type="url" value="{{ form.url or '' }}" placeholder="https://" required inputmode="url" autocapitalize="none">
+
+  <label class="check"><input type="checkbox" name="seo" value="on" {{ 'checked' if form.seo }}> {{ t('seo_include') }}</label>
+
+  <button class="btn primary" type="submit">{{ t('save') }}</button>
+</form>
+{% endblock %}

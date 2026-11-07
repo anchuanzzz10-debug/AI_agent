@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="chat card" data-csrf="{{ csrf }}" data-error="{{ t('error') }}">
+  <div class="messages" id="messages" aria-live="polite">
+    <div class="msg bot">{{ t('chat_intro') }}</div>
+  </div>
+  <form id="chat-form" class="chat-form" autocomplete="off">
+    <input id="chat-input" name="message" maxlength="500" placeholder="{{ t('chat_placeholder') }}" required>
+    <button class="btn primary" type="submit">{{ t('send') }}</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="login-card card">
+  <h1>🛡️ {{ t('app_title') }}</h1>
+  <form method="post" action="/login" class="stack">
+    <label for="password">{{ t('password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button class="btn primary" type="submit">{{ t('login_button') }}</button>
+  </form>
+  <p class="muted center"><a href="/lang/{{ 'en' if lang == 'ml' else 'ml' }}?next=/login">{{ t('language') }}</a></p>
+</div>
+{% endblock %}

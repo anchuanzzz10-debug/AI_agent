@@ -148,6 +148,17 @@ class ProjectStore:
         with self._conn() as conn:
             return [dict(r) for r in conn.execute(sql + " ORDER BY id", args).fetchall()]
 
+    def latest_run(self) -> tuple[str | None, float | None, list[dict[str, Any]]]:
+        """(run_id, timestamp, results) of the most recent check run."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT run_id, ts FROM check_results ORDER BY id DESC LIMIT 1").fetchone()
+            if row is None:
+                return None, None, []
+            rows = conn.execute("SELECT * FROM check_results WHERE run_id = ? ORDER BY id",
+                                (row["run_id"],)).fetchall()
+        return row["run_id"], row["ts"], [dict(r) for r in rows]
+
     # -- generic row access used by incidents / approvals ---------------
     def upsert(self, table: str, row: dict[str, Any]) -> None:
         if table not in {"incidents", "approvals"}:

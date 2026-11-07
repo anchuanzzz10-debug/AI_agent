@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+{% set p = s.project %}
+<div class="page-head">
+  <div>
+    <h1>{{ p.name }}</h1>
+    <p class="muted small">{{ p.id }} · {{ t('type_' ~ p.type.value) }} · <a href="{{ p.url }}" rel="noopener noreferrer" target="_blank">{{ p.url }}</a></p>
+  </div>
+  <form method="post" action="/projects/{{ p.id }}/check" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn primary" type="submit" {{ 'disabled' if s.running }}>{{ t('checking') if s.running else t('check_now') }}</button>
+  </form>
+</div>
+
+<p class="small">{{ t('last_check') }}: {{ s.checked_at or t('never_checked') }}</p>
+
+{% set groups = [('fail', 'problems', '❌'), ('warn', 'warnings', '⚠️'), ('ok', 'ok', '✅'), ('not_checked', 'not_checked', '⏸️')] %}
+{% for cat_title, results in [(None, s.results|rejectattr('category', 'equalto', 'seo')|list), ('seo_section', s.results|selectattr('category', 'equalto', 'seo')|list)] %}
+  {% if results %}
+  <section class="card">
+    {% if cat_title %}<h2>{{ t(cat_title) }}</h2>{% endif %}
+    {% for status, label, icon in groups %}
+      {% set rows = results|selectattr('status', 'equalto', status)|list %}
+      {% if rows %}
+        <details {{ 'open' if status in ['fail', 'warn', 'not_checked'] }}>
+          <summary>{{ icon }} {{ t(label) }} ({{ rows|length }})</summary>
+          <ul class="results">
+          {% for r in rows %}<li><code>{{ r.name }}</code> {{ r.summary }}</li>{% endfor %}
+          </ul>
+        </details>
+      {% endif %}
+    {% endfor %}
+  </section>
+  {% endif %}
+{% endfor %}
+
+<section class="card">
+  <h2>🚨 {{ t('open_incidents') }}</h2>
+  {% if s.incidents %}
+    <ul class="results">{% for i in s.incidents %}<li><strong>{{ i.id }}</strong> [{{ i.severity }}] {{ i.title }} <span class="tag">{{ i.status }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="muted">{{ t('none') }}</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>⚙️ {{ t('settings') }}</h2>
+  <form method="post" action="/projects/{{ p.id }}/settings" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <fieldset>
+      <legend>{{ t('features') }}</legend>
+      <div class="feature-grid">
+      {% for f in allowed %}
+        <label class="check"><input type="checkbox" name="f_{{ f }}" {{ 'checked' if p.features[f] }}> {{ t('feat_' ~ f) }}</label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <label for="key_paths">{{ t('key_paths') }}</label>
+    <input id="key_paths" name="key_paths" value="{{ p.key_paths|join(', ') }}" autocapitalize="none">
+    <label for="expected_text">{{ t('expected_text') }}</label>
+    <input id="expected_text" name="expected_text" value="{{ p.expected_text or '' }}">
+    <button class="btn primary" type="submit">{{ t('save') }}</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>🔑 {{ t('credentials') }}</h2>
+  <p class="muted small">{{ t('credentials_help') }}</p>
+  {% if cred_names %}
+  <ul class="results">
+    {% for n in cred_names %}
+    <li class="row"><code>{{ n }}</code> <span class="muted">••••••</span>
+      <form method="post" action="/projects/{{ p.id }}/credentials/delete" class="inline" data-confirm="{{ t('delete') }} {{ n }}?">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ n }}">
+        <button class="btn ghost small" type="submit">{{ t('delete') }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/projects/{{ p.id }}/credentials" class="stack" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="cname">{{ t('cred_name') }}</label>
+    <input id="cname" name="name" pattern="[a-z0-9_]{2,40}" placeholder="wp_read_user" autocapitalize="none" required>
+    <label for="cvalue">{{ t('cred_value') }}</label>
+    <input id="cvalue" name="value" type="password" autocomplete="new-password" required>
+    <button class="btn" type="submit">{{ t('save') }}</button>
+  </form>
+</section>
+{% endblock %}

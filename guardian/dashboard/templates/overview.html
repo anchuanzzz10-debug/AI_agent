@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t('nav_projects') }}</h1>
+  <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
+</div>
+{% if not cards %}
+  <div class="card muted">{{ t('no_projects') }}</div>
+{% endif %}
+<div class="grid">
+{% for c in cards %}
+  {% set p = c.project %}
+  <article class="card project-card status-{{ 'fail' if c.counts.fail else ('warn' if c.counts.warn else ('ok' if c.run_id else 'none')) }}">
+    <div class="card-head">
+      <h2><a href="/projects/{{ p.id }}">{{ p.name }}</a></h2>
+      <span class="tag">{{ t('type_' ~ p.type.value) }}</span>
+    </div>
+    <p class="muted small">{{ p.url }}</p>
+    <div class="counts">
+      <span class="count fail" title="{{ t('problems') }}">❌ {{ c.counts.fail }}</span>
+      <span class="count warn" title="{{ t('warnings') }}">⚠️ {{ c.counts.warn }}</span>
+      <span class="count ok" title="{{ t('ok') }}">✅ {{ c.counts.ok }}</span>
+      <span class="count nc" title="{{ t('not_checked') }}">⏸️ {{ c.counts.not_checked }}</span>
+    </div>
+    <p class="small">{{ t('last_check') }}: {{ c.checked_at or t('never_checked') }}
+      {% if p.enabled('seo') %}· SEO ✓{% endif %}</p>
+    {% if c.incidents %}<p class="small alert-text">🚨 {{ t('open_incidents') }}: {{ c.incidents|length }}</p>{% endif %}
+    {% if c.pending %}<p class="small"><a href="/approvals">✅ {{ t('pending_approvals') }}: {{ c.pending|length }}</a></p>{% endif %}
+    <div class="actions">
+      <form method="post" action="/projects/{{ p.id }}/check" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn" type="submit" {{ 'disabled' if c.running }}>{{ t('checking') if c.running else t('check_now') }}</button>
+      </form>
+      <a class="btn ghost" href="/projects/{{ p.id }}">{{ t('details') }}</a>
+    </div>
+  </article>
+{% endfor %}
+</div>
+{% endblock %}

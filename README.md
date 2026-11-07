@@ -29,6 +29,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Incidents, approvals, backup → change → verify → rollback (post fields, plugin on/off) | ✅ |
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
+| Dashboard (laptop + phone, Malayalam/English): projects, results, settings, credentials, approvals, command chat | ✅ 25 tests, plus a real browser test at laptop and phone sizes. ⚠️ Not yet opened on your laptop or phone. |
 | Auto-start: passphrase in Windows Credential Manager + Task Scheduler task | ✅ Logic tested with a simulated credential store and a simulated `schtasks`. ⚠️ Not yet run on real Windows. |
 | Malayalam, Manglish and English command parsing (fixed command dictionary) | ✅ |
 | Malayalam voice: speech recognition and speech output providers, plus the evaluation tool | ⚠️ **Code only, NOT TESTED** (see "Malayalam voice" below) |
@@ -146,6 +147,33 @@ guardian autostart status
 - Output goes to `data\logs\autostart.log`.
 - To turn it off: `guardian autostart remove`, then `guardian passphrase remove`.
 - **Security trade-off:** any program running under your Windows account can read Credential Manager entries. Use a strong Windows password or PIN and keep BitLocker on.
+
+## Dashboard (laptop and phone, Malayalam and English)
+
+A web control panel with an overview of all projects, project details with grouped results (including SEO only when it's on), settings and feature switches, write-only credentials, Approve/Reject buttons, and a chat box that understands Malayalam, Manglish and English commands.
+
+```powershell
+guardian dashboard password
+```
+```powershell
+guardian dashboard serve
+```
+Then open **http://127.0.0.1:8765** in your browser. Use the button at the top to switch between Malayalam and English.
+
+**On your phone (private, over Tailscale; free):**
+1. Install Tailscale on the laptop and the phone, signed in to the same account.
+2. Find the laptop's Tailscale address by running `tailscale ip -4` (it looks like `100.x.y.z`).
+3. Start the dashboard on that address:
+   ```powershell
+   guardian dashboard serve --host 100.x.y.z --allow-remote
+   ```
+4. On the phone, open `http://100.x.y.z:8765`.
+
+Tailscale traffic is encrypted and only your own devices can reach it. Never use `--host 0.0.0.0`: that exposes the dashboard to everyone on your Wi-Fi network.
+
+**Security:** a separate dashboard password (stored as a scrypt hash), a lockout after 5 wrong attempts (15 minutes), sessions that expire after 12 idle hours, CSRF protection on every change, strict security headers, and credential values that are never displayed. Restarting the dashboard logs everyone out.
+
+**Chat (this phase):** a fixed set of commands with no AI model: report, check, problems, SEO report and help. It never approves anything; use the Approvals page. Free-form AI answers come in the next phase.
 
 ## Alerts (Telegram)
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <title>{{ t('app_title') }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+{% if csrf %}
+<header class="topbar">
+  <a class="brand" href="/">🛡️ <span>{{ t('app_title') }}</span></a>
+  <div class="topbar-actions">
+    <a class="pill" href="/lang/{{ 'en' if lang == 'ml' else 'ml' }}?next={{ path }}">{{ t('language') }}</a>
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="pill ghost" type="submit">{{ t('logout') }}</button>
+    </form>
+  </div>
+</header>
+<nav class="nav">
+  <a href="/" class="{{ 'active' if path == '/' or path.startswith('/projects') }}"><span class="ico">🏠</span><span>{{ t('nav_overview') }}</span></a>
+  <a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}"><span class="ico">✅</span><span>{{ t('nav_approvals') }}</span></a>
+  <a href="/chat" class="{{ 'active' if path.startswith('/chat') }}"><span class="ico">💬</span><span>{{ t('nav_chat') }}</span></a>
+</nav>
+{% endif %}
+<main class="{{ 'with-nav' if csrf else 'bare' }}">
+  {% if flash %}<div class="flash" role="status">{{ flash }}</div>{% endif %}
+  {% if error %}<div class="flash error" role="alert">{{ t(error) if error in ['login_failed','login_locked'] else error }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
