@@ -106,11 +106,11 @@ def test_session_idle_expiry():
 
 def test_malayalam_default_and_english_switch(setup):
     c = client(setup)
-    assert "പ്രോജക്റ്റുകൾ" in c.get("/").text
+    assert "വെബ്സൈറ്റുകളും ആപ്പുകളും" in c.get("/").text
     r = c.get("/lang/en?next=/")
     assert r.headers["location"] == "/"
     c.cookies.set("lang", "en")
-    assert "Projects" in c.get("/").text
+    assert "Websites &amp; apps" in c.get("/").text
 
 
 def test_language_switch_blocks_open_redirect(setup):

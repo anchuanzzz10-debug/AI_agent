@@ -15,6 +15,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..approvals import ApprovalGate, ApprovalStatus
+from ..checks.wordpress import (CHANGE_PASSWORD as WP_CHANGE_PASSWORD, CHANGE_USER as WP_CHANGE_USER,
+                                READ_PASSWORD as WP_READ_PASSWORD, READ_USER as WP_READ_USER,
+                                WordPressInspector)
 from ..incidents import IncidentManager
 from ..models import FEATURES, ConfigError, ProjectConfig, ProjectType, _INCOMPATIBLE
 from ..monitor import Monitor, internet_available
@@ -29,7 +32,8 @@ from .i18n import DEFAULT_LANG, LANGS, t
 HERE = Path(__file__).parent
 COOKIE = "guardian_session"
 CRED_NAME_RE = re.compile(r"^[a-z0-9_]{2,40}$")
-FLASH_KEYS = {"saved", "created", "deleted", "approved", "rejected", "check_started", "csrf_failed"}
+FLASH_KEYS = {"saved", "created", "created_wp", "deleted", "approved", "rejected", "check_started",
+              "csrf_failed"}
 
 CheckRunner = Callable[[ProjectConfig], None]
 
@@ -44,8 +48,48 @@ def default_check_runner(home: Path, vault: Vault) -> CheckRunner:
     return run
 
 
+def _default_http_client() -> httpx.Client:
+    return httpx.Client(timeout=20, headers={"User-Agent": "GuardianMonitor/0.4"})
+
+
+# Human-friendly labels for the WordPress connection test.
+WP_LABELS = {
+    "wp:rest_api": ("WordPress REST API", "WordPress REST API"),
+    "wp:auth": ("ലോഗിൻ (Application Password)", "Login (Application Password)"),
+    "wp:least_privilege": ("ആവശ്യത്തിന് മാത്രം അധികാരം", "Least-privilege access"),
+    "wp:content": ("പേജുകൾ, പോസ്റ്റുകൾ, മീഡിയ", "Pages, posts, media"),
+    "wp:plugins": ("പ്ലഗിനുകൾ", "Plugins"),
+    "wp:themes": ("തീമുകൾ", "Themes"),
+    "wp:settings": ("ക്രമീകരണങ്ങൾ", "Settings"),
+    "wp:connector": ("Guardian Connector പ്ലഗിൻ", "Guardian Connector plugin"),
+    "wp:core": ("WordPress പതിപ്പ്", "WordPress version"),
+    "wp:updates": ("അപ്ഡേറ്റുകൾ", "Updates"),
+    "wp:updates:plugins": ("പ്ലഗിൻ അപ്ഡേറ്റുകൾ", "Plugin updates"),
+    "wp:updates:premium": ("പ്രീമിയം പ്ലഗിൻ അപ്ഡേറ്റുകൾ", "Premium plugin updates"),
+    "wp:updates:core_themes": ("കോർ, തീം അപ്ഡേറ്റുകൾ", "Core and theme updates"),
+    "errors:php_log": ("PHP പിശക് ലോഗ്", "PHP error log"),
+    "security:admins": ("അഡ്മിൻ അക്കൗണ്ടുകൾ", "Administrator accounts"),
+    "seo:rank_math_settings": ("Rank Math ക്രമീകരണങ്ങൾ", "Rank Math settings"),
+    "seo:discourage_search": ("Search engine തടയൽ ക്രമീകരണം", "Discourage search engines setting"),
+}
+
+
+def wp_verdict(results) -> str:
+    by = {r.name: r.status.value for r in results}
+    if by.get("wp:rest_api") == "fail":
+        return "wp_v_unreachable"
+    if by.get("wp:auth") == "not_checked":
+        return "wp_v_no_creds"
+    if by.get("wp:auth") == "fail":
+        return "wp_v_auth_failed"
+    if by.get("wp:least_privilege") == "warn":
+        return "wp_v_admin"
+    return "wp_v_connector" if by.get("wp:connector") == "ok" else "wp_v_ok"
+
+
 def create_app(home: Path, config_dir: Path, vault: Vault,
-               check_runner: CheckRunner | None = None, sessions: auth.SessionStore | None = None) -> FastAPI:
+               check_runner: CheckRunner | None = None, sessions: auth.SessionStore | None = None,
+               http_client_factory: Callable[[], httpx.Client] = _default_http_client) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -109,6 +153,19 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                 "results": results, "counts": counts, "running": project.id in running,
                 "incidents": IncidentManager(store).list(),
                 "pending": ApprovalGate(store).list(ApprovalStatus.PENDING)}
+
+    def project_ctx(project: ProjectConfig) -> dict:
+        names = vault.project(project.id).names()
+        return {
+            "s": summarize(project),
+            "allowed": [f for f in FEATURES if f not in _INCOMPATIBLE[project.type]],
+            "cred_names": names,
+            "wp": {"read": WP_READ_USER in names and WP_READ_PASSWORD in names,
+                   "change": WP_CHANGE_USER in names and WP_CHANGE_PASSWORD in names,
+                   "https": project.url.startswith("https://"),
+                   "profile_url": project.url + "/wp-admin/profile.php#application-passwords-section"},
+            "wp_labels": WP_LABELS,
+        }
 
     # -- middleware -------------------------------------------------------
     @app.middleware("http")
@@ -195,6 +252,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             store_for(project.id).audit("dashboard", "project_created", features=project.features)
         except ConfigError as exc:
             return render(request, "project_new.html", session, form=form, error=str(exc), status_code=400)
+        if project.type is ProjectType.WORDPRESS:
+            return RedirectResponse(f"/projects/{project.id}?msg=created_wp#wordpress", status_code=303)
         return back(f"/projects/{project.id}", "created")
 
     @app.get("/projects/{pid}", response_class=HTMLResponse)
@@ -206,9 +265,39 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             project = registry.get(pid)
         except ConfigError:
             return render(request, "error.html", session, error=f"No project {pid!r}", status_code=404)
-        allowed = [f for f in FEATURES if f not in _INCOMPATIBLE[project.type]]
-        return render(request, "project.html", session, s=summarize(project), allowed=allowed,
-                      cred_names=vault.project(pid).names())
+        return render(request, "project.html", session, **project_ctx(project))
+
+    @app.post("/projects/{pid}/wordpress")
+    def wordpress_connect(request: Request, pid: str, csrf: str = Form(""), op: str = Form("save_test"),
+                          read_user: str = Form(""), read_password: str = Form(""),
+                          change_user: str = Form(""), change_password: str = Form("")):
+        session = session_of(request)
+        if not session:
+            return to_login()
+        if not auth.csrf_ok(session, csrf):
+            return back(f"/projects/{pid}", "csrf_failed")
+        project = registry.get(pid)
+        if project.type is not ProjectType.WORDPRESS:
+            return back(f"/projects/{pid}")
+        creds = vault.project(pid)
+        if op == "remove_change":
+            creds.delete(WP_CHANGE_USER)
+            creds.delete(WP_CHANGE_PASSWORD)
+            store_for(pid).audit("dashboard", "wordpress_change_access_removed")
+            return back(f"/projects/{pid}", "deleted")
+        saved = []
+        for name, value in ((WP_READ_USER, read_user), (WP_READ_PASSWORD, read_password),
+                            (WP_CHANGE_USER, change_user), (WP_CHANGE_PASSWORD, change_password)):
+            if value.strip():
+                creds.set(name, value.strip())
+                saved.append(name)
+        with http_client_factory() as client:
+            results = WordPressInspector(project, client, creds, wporg_client=None).run()
+        verdict = wp_verdict(results)
+        store_for(pid).audit("dashboard", "wordpress_connection_tested", saved=saved, verdict=verdict,
+                             statuses={r.name: r.status.value for r in results})
+        return render(request, "project.html", session, **project_ctx(project),
+                      wp_test=results, wp_verdict=verdict)
 
     @app.post("/projects/{pid}/check")
     def check(request: Request, pid: str, csrf: str = Form("")):
@@ -244,9 +333,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             store_for(pid).audit("dashboard", "settings_saved", features=project.features,
                                  key_paths=project.key_paths)
         except ConfigError as exc:
-            allowed = [f for f in FEATURES if f not in _INCOMPATIBLE[project.type]]
-            return render(request, "project.html", session, s=summarize(registry.get(pid)), allowed=allowed,
-                          cred_names=vault.project(pid).names(), error=str(exc), status_code=400)
+            return render(request, "project.html", session, **project_ctx(registry.get(pid)),
+                          error=str(exc), status_code=400)
         return back(f"/projects/{pid}", "saved")
 
     @app.post("/projects/{pid}/credentials")

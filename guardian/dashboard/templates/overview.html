@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-head">
-  <h1>{{ t('nav_projects') }}</h1>
+  <h1>{{ t('sites_and_apps') }}</h1>
   <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
 </div>
 {% if not cards %}
-  <div class="card muted">{{ t('no_projects') }}</div>
+  <div class="card">
+    <p class="muted">{{ t('no_projects') }}</p>
+    <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
+  </div>
 {% endif %}
 <div class="grid">
 {% for c in cards %}

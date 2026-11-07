@@ -97,6 +97,11 @@ ul.results li.row form { margin-left: auto; }
 .flash { background: var(--flash); border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; margin-bottom: 1rem; }
 .flash.error { background: var(--flash-error); color: var(--fail); }
 
+h3 { font-size: 1rem; margin: .75rem 0 .25rem; }
+.card.inset { background: var(--bg); margin: .75rem 0; }
+ol.steps { padding-left: 1.3rem; margin: .5rem 0; }
+ol.steps li { margin-bottom: .4rem; overflow-wrap: anywhere; }
+
 .login-card { max-width: 420px; margin: 12vh auto 0; }
 
 .chat { display: flex; flex-direction: column; height: calc(100dvh - 190px); min-height: 360px; padding: 0; overflow: hidden; }

@@ -11,6 +11,29 @@
     }
   });
 
+  // Confirm for individual buttons (e.g. remove change login).
+  document.addEventListener("click", function (event) {
+    var btn = event.target.closest && event.target.closest("[data-confirm-button]");
+    if (btn && !window.confirm(btn.getAttribute("data-confirm-button"))) {
+      event.preventDefault();
+    }
+  });
+
+  // Suggest a project ID from the address (e.g. https://www.docs-media.com -> docs-media).
+  var urlInput = document.getElementById("url");
+  var idInput = document.getElementById("id");
+  if (urlInput && idInput) {
+    var touched = idInput.value !== "";
+    idInput.addEventListener("input", function () { touched = true; });
+    urlInput.addEventListener("input", function () {
+      if (touched) return;
+      try {
+        var host = new URL(urlInput.value).hostname.replace(/^www\./, "");
+        idInput.value = host.split(".")[0].toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40);
+      } catch (e) { /* not a full URL yet */ }
+    });
+  }
+
   // Chat
   var chat = document.querySelector(".chat");
   if (!chat) return;

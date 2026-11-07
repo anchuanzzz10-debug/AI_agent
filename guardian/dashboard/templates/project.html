@@ -61,8 +61,71 @@
   </form>
 </section>
 
+{% if p.type.value == 'wordpress' %}
+<section class="card" id="wordpress">
+  <h2>🔌 {{ t('wp_title') }}</h2>
+  <ul class="results">
+    <li>{{ '✅' if wp.read else '⚪' }} {{ t('wp_status_read_on') if wp.read else t('wp_status_read_off') }}</li>
+    <li>{{ '🔓' if wp.change else '🔒' }} {{ t('wp_status_change_on') if wp.change else t('wp_status_change_off') }}</li>
+  </ul>
+  {% if not wp.https %}<div class="flash error">{{ t('wp_https_warning') }}</div>{% endif %}
+
+  {% if wp_test %}
+  <div class="card inset" id="wp-test">
+    <h3>{{ t('wp_test_title') }}</h3>
+    <p><strong>{{ t(wp_verdict) }}</strong></p>
+    <ul class="results">
+      {% for r in wp_test %}
+      <li>{{ {'ok': '✅', 'warn': '⚠️', 'fail': '❌', 'not_checked': '⏸️'}[r.status.value] }}
+        <strong>{{ wp_labels[r.name][0 if lang == 'ml' else 1] if r.name in wp_labels else r.name }}</strong>
+        <span class="muted small">· {{ r.summary }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <details {{ 'open' if not wp.read }}>
+    <summary>ℹ️ {{ t('wp_how_title') }}</summary>
+    <ol class="steps">
+      <li>{{ t('wp_how_1') }} <a href="{{ wp.profile_url }}" target="_blank" rel="noopener noreferrer">{{ wp.profile_url }}</a></li>
+      <li>{{ t('wp_how_2') }}</li>
+      <li>{{ t('wp_how_3') }}</li>
+      <li>{{ t('wp_how_4') }}</li>
+    </ol>
+  </details>
+
+  <form method="post" action="/projects/{{ p.id }}/wordpress" class="stack" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <h3>{{ t('wp_read_section') }}</h3>
+    <label for="wp_ru">{{ t('wp_username') }}</label>
+    <input id="wp_ru" name="read_user" autocapitalize="none" spellcheck="false" placeholder="{{ t('wp_keep_blank') if wp.read else 'guardian-monitor' }}">
+    <label for="wp_rp">{{ t('wp_app_password') }}</label>
+    <input id="wp_rp" name="read_password" type="password" autocomplete="new-password" placeholder="{{ t('wp_keep_blank') if wp.read else 'xxxx xxxx xxxx xxxx xxxx xxxx' }}">
+
+    <details>
+      <summary>🔓 {{ t('wp_change_section') }}</summary>
+      <p class="muted small">{{ t('wp_change_help') }}</p>
+      <label for="wp_cu">{{ t('wp_username') }}</label>
+      <input id="wp_cu" name="change_user" autocapitalize="none" spellcheck="false" placeholder="{{ t('wp_keep_blank') if wp.change else '' }}">
+      <label for="wp_cp">{{ t('wp_app_password') }}</label>
+      <input id="wp_cp" name="change_password" type="password" autocomplete="new-password" placeholder="{{ t('wp_keep_blank') if wp.change else '' }}">
+    </details>
+
+    <div class="actions">
+      <button class="btn primary" type="submit" name="op" value="save_test">{{ t('wp_save_test') }}</button>
+      {% if wp.change %}
+      <button class="btn ghost" type="submit" name="op" value="remove_change" data-confirm-button="{{ t('wp_remove_change') }}?">{{ t('wp_remove_change') }}</button>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% else %}
+<section class="card"><p class="muted">🔓 {{ t('no_login_needed') }}</p></section>
+{% endif %}
+
 <section class="card">
-  <h2>🔑 {{ t('credentials') }}</h2>
+<details>
+  <summary>🔑 {{ t('advanced_credentials') }}</summary>
   <p class="muted small">{{ t('credentials_help') }}</p>
   {% if cred_names %}
   <ul class="results">
@@ -84,5 +147,6 @@
     <input id="cvalue" name="value" type="password" autocomplete="new-password" required>
     <button class="btn" type="submit">{{ t('save') }}</button>
   </form>
+</details>
 </section>
 {% endblock %}
