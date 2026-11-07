@@ -29,8 +29,12 @@ class ChatContext:
     ai: Agent | None = None                  # local AI model for free-form questions
 
 
-def _reply_lang(detected: str) -> str:
-    return "ml" if detected in ("ml", "manglish") else "en"
+def _reply_lang(detected: str, preferred: str | None = None) -> str:
+    """Malayalam script or Manglish is always answered in Malayalam. Other text
+    follows the language the user chose in the chat ("speaking language")."""
+    if detected in ("ml", "manglish"):
+        return "ml"
+    return preferred if preferred in ("ml", "en") else "en"
 
 
 def _match_project(text: str, projects: list[ProjectConfig], parsed: str | None) -> ProjectConfig | None:
@@ -83,13 +87,13 @@ HELP = {
 }
 
 
-def respond(message: str, ctx: ChatContext) -> dict:
+def respond(message: str, ctx: ChatContext, preferred_lang: str | None = None) -> dict:
     message = (message or "").strip()[:500]
     if not message:
         return {"reply": "", "lang": "en", "intent": "empty"}
     projects_map = {p.id: p.name for p in ctx.projects}
     intent = parse_command(message, projects_map)
-    lang = _reply_lang(intent.language)
+    lang = _reply_lang(intent.language, preferred_lang)
     project = _match_project(message, ctx.projects, intent.project)
     if intent.name == "unknown" and ctx.ai is not None:
         answer = ctx.ai.answer(message, lang)

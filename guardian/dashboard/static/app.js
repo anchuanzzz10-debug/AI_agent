@@ -92,7 +92,7 @@
     fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
-      body: JSON.stringify({ message: message }),
+      body: JSON.stringify({ message: message, lang: voiceLang.value.indexOf("ml") === 0 ? "ml" : "en" }),
       credentials: "same-origin"
     })
       .then(function (r) {
@@ -107,7 +107,9 @@
         if (data.source === "ai") {
           var badge = document.createElement("div");
           badge.className = "ai-badge";
-          badge.textContent = text("ai-badge") + " " + ((data.tools || []).join(", ") || "-");
+          badge.textContent = (data.tools && data.tools.length)
+            ? text("ai-badge") + " " + data.tools.join(", ")
+            : text("ai-badge-none");
           pending.appendChild(badge);
         }
         speak(data.reply, data.lang);

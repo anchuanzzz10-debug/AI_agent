@@ -178,6 +178,8 @@ STRINGS: dict[str, dict[str, str]] = {
     "ai_off": {"ml": "🤖 AI ഓഫ് ആണ്: ലളിതമായ commands മാത്രം പ്രവർത്തിക്കും.", "en": "🤖 AI is off: only simple commands work."},
     "ai_down": {"ml": "🤖 AI ലഭ്യമല്ല: {message}", "en": "🤖 AI not available: {message}"},
     "ai_thinking": {"ml": "🤖 ചിന്തിക്കുന്നു… (ലാപ്ടോപ്പിൽ 10–60 സെക്കൻഡ് എടുക്കാം)", "en": "🤖 Thinking… (can take 10–60 seconds on a laptop)"},
+    "ai_badge_none": {"ml": "🤖 AI ഉത്തരം · website വിവരങ്ങൾ ഉപയോഗിച്ചിട്ടില്ല (പൊതുവായ മറുപടി)",
+                      "en": "🤖 AI answer · no website data used (general reply)"},
     "ai_badge": {"ml": "🤖 AI ഉത്തരം · ഉപയോഗിച്ചത്:", "en": "🤖 AI answer · used:"},
     "error": {"ml": "പിശക്", "en": "Error"},
     "csrf_failed": {"ml": "സുരക്ഷാ പരിശോധന പരാജയപ്പെട്ടു. പേജ് പുതുക്കി വീണ്ടും ശ്രമിക്കുക.",

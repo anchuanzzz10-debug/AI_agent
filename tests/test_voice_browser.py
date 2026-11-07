@@ -133,3 +133,4 @@ def test_voice_chat_in_browser(server):
     ai = results["ai_free_question"]
     assert ai["status"].startswith("🤖") and "qwen3:8b" in ai["status"]
     assert ai["reply"].startswith("AI-REPLY-OK") and "🤖" in ai["reply"]
+    assert "website വിവരങ്ങൾ ഉപയോഗിച്ചിട്ടില്ല" in ai["reply"]   # clear label when no tools were used

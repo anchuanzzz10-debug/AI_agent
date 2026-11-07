@@ -4,7 +4,7 @@
                      'voice_err_no-speech', 'voice_err_network', 'voice_err_language-not-supported',
                      'voice_err_other', 'voice_no_ml_voice', 'voice_mic', 'voice_test_running',
                      'voice_test_ok', 'voice_test_silent', 'voice_test_nomic', 'voice_test_devices',
-                     'ai_ready', 'ai_off', 'ai_down', 'ai_thinking', 'ai_badge'] %}
+                     'ai_ready', 'ai_off', 'ai_down', 'ai_thinking', 'ai_badge', 'ai_badge_none'] %}
 <section class="chat card" data-csrf="{{ csrf }}" data-error="{{ t('error') }}" data-ui-lang="{{ lang }}"
          {% for k in voice_keys %}data-{{ k|replace('_', '-') }}="{{ t(k) }}" {% endfor %}>
   <div class="voice-bar">

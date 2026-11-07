@@ -412,7 +412,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         ctx = ChatContext(registry.load_all(), store_for, start_check, ai_agent)
         # The AI can take a minute on a laptop CPU: run it off the event loop so
         # the rest of the dashboard stays responsive.
-        result = await run_in_threadpool(respond, str(body.get("message", "")), ctx)
+        preferred = body.get("lang") if body.get("lang") in ("ml", "en") else None
+        result = await run_in_threadpool(respond, str(body.get("message", "")), ctx, preferred)
         return JSONResponse(result)
 
     @app.get("/api/ai/status")

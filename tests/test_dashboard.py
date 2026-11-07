@@ -306,3 +306,21 @@ def test_serve_refuses_without_password_and_remote_host(home, vault, tmp_path, m
     auth.set_password(home, DASH_PW)
     assert cli.main(["dashboard", "serve", "--host", "0.0.0.0"]) == 1
     assert "Refusing" in capsys.readouterr().err
+
+
+def test_reply_follows_chosen_language(setup):
+    c = client(setup)
+    token = csrf_of(c.get("/").text)
+    ProjectStore(setup["home"], "connectdocsmedia").record_check("r", ok("uptime:/", "uptime", "200"))
+    # English words, but the user chose Malayalam as speaking language -> Malayalam reply
+    r = c.post("/api/chat", json={"message": "report", "lang": "ml"}, headers={"X-CSRF-Token": token}).json()
+    assert r["lang"] == "ml" and "പ്രശ്നങ്ങൾ 0" in r["reply"]
+    # Malayalam text is answered in Malayalam even if English was chosen
+    r = c.post("/api/chat", json={"message": "റിപ്പോർട്ട് തരൂ", "lang": "en"}, headers={"X-CSRF-Token": token}).json()
+    assert r["lang"] == "ml"
+    # Manglish is answered in Malayalam
+    r = c.post("/api/chat", json={"message": "hi nigal aran", "lang": "en"}, headers={"X-CSRF-Token": token}).json()
+    assert r["lang"] == "ml"
+    # invalid preference is ignored
+    r = c.post("/api/chat", json={"message": "report", "lang": "xx"}, headers={"X-CSRF-Token": token}).json()
+    assert r["lang"] == "en"

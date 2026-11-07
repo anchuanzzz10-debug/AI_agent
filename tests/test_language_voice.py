@@ -11,6 +11,8 @@ PROJECTS = {"site-one": "Docs Media", "app-one": "Billing App"}
     ("innathe report tharu", "manglish"),
     ("site-one check cheyyu", "manglish"),
     ("show me the report", "en"),
+    ("hi nigal aran", "manglish"),            # real message from the first laptop test
+    ("ningal enthokke cheyyam", "manglish"),
 ])
 def test_detect_language(text, lang):
     assert detect_language(text) == lang

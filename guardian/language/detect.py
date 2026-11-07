@@ -17,6 +17,11 @@ MANGLISH_MARKERS = {
     "innathe", "innu", "nale", "ippo", "ippol", "parayu", "nokku", "nokkuka", "kaanikku",
     "sheriyakku", "prashnam", "prashnangal", "sahayam", "sthithi", "onnu", "ellam", "ella",
     "kittiyo", "kitti", "mathi", "pinne", "athu", "ithu", "sammatham", "parishodhikku",
+    # short / alternative spellings people actually type
+    "nigal", "ningalu", "ninghal", "aran", "aara", "aaranu", "aaru", "enthokke", "enthanu",
+    "enthaa", "parayamo", "ariyamo", "sugamano", "sukhamano", "alle", "ille", "pattumo",
+    "cheyyam", "ninte", "nee", "enne", "namukku", "eppol", "evideya", "enthinu", "kollam",
+    "nannayi", "manassilayo", "manasilayo", "paranju", "tharamo", "kaanikkamo",
 }
 
 
