@@ -244,6 +244,13 @@ def _chat(c, message, csrf):
     return c.post("/api/chat", json={"message": message}, headers={"X-CSRF-Token": csrf})
 
 
+def test_chat_page_has_voice_controls(setup):
+    html = client(setup).get("/chat").text
+    assert 'id="mic"' in html and 'value="ml-IN"' in html and 'value="en-IN"' in html
+    assert 'id="speak-replies"' in html and "data-voice-no-ml-voice=" in html
+    assert "<script>" not in html                                     # no inline scripts (CSP)
+
+
 def test_chat_requires_csrf_header(setup):
     c = client(setup)
     assert c.post("/api/chat", json={"message": "help"}).status_code == 403

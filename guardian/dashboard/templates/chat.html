@@ -1,12 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="chat card" data-csrf="{{ csrf }}" data-error="{{ t('error') }}">
+{% set voice_keys = ['voice_listening', 'voice_unsupported', 'voice_insecure', 'voice_err_not-allowed',
+                     'voice_err_no-speech', 'voice_err_network', 'voice_err_language-not-supported',
+                     'voice_err_other', 'voice_no_ml_voice', 'voice_mic'] %}
+<section class="chat card" data-csrf="{{ csrf }}" data-error="{{ t('error') }}" data-ui-lang="{{ lang }}"
+         {% for k in voice_keys %}data-{{ k|replace('_', '-') }}="{{ t(k) }}" {% endfor %}>
+  <div class="voice-bar">
+    <label class="voice-lang">{{ t('voice_lang') }}
+      <select id="voice-lang">
+        <option value="ml-IN" {{ 'selected' if lang == 'ml' }}>മലയാളം</option>
+        <option value="en-IN" {{ 'selected' if lang == 'en' }}>English</option>
+      </select>
+    </label>
+    <label class="check small"><input type="checkbox" id="speak-replies"> {{ t('voice_speak_replies') }}</label>
+  </div>
+  <p class="voice-note small muted" id="voice-note" hidden></p>
   <div class="messages" id="messages" aria-live="polite">
     <div class="msg bot">{{ t('chat_intro') }}</div>
   </div>
   <form id="chat-form" class="chat-form" autocomplete="off">
+    <button class="btn mic" type="button" id="mic" title="{{ t('voice_mic') }}" aria-label="{{ t('voice_mic') }}" hidden>🎤</button>
     <input id="chat-input" name="message" maxlength="500" placeholder="{{ t('chat_placeholder') }}" required>
     <button class="btn primary" type="submit">{{ t('send') }}</button>
   </form>
+  <p class="small muted privacy" id="voice-privacy" hidden>ℹ️ {{ t('voice_privacy') }}</p>
 </section>
 {% endblock %}

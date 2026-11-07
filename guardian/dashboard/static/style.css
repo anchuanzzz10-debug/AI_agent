@@ -13,6 +13,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* component display rules must not unhide elements */
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.6; }
 a { color: var(--primary); }
@@ -104,7 +105,7 @@ ol.steps li { margin-bottom: .4rem; overflow-wrap: anywhere; }
 
 .login-card { max-width: 420px; margin: 12vh auto 0; }
 
-.chat { display: flex; flex-direction: column; height: calc(100dvh - 190px); min-height: 360px; padding: 0; overflow: hidden; }
+.chat { display: flex; flex-direction: column; height: calc(100dvh - 170px); min-height: 380px; padding: 0; overflow: hidden; }
 @media (min-width: 860px) { .chat { height: calc(100dvh - 140px); } }
 .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .6rem; }
 .msg { max-width: 85%; padding: .6rem .9rem; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -112,4 +113,15 @@ ol.steps li { margin-bottom: .4rem; overflow-wrap: anywhere; }
 .msg.me { background: var(--primary); color: var(--primary-text); align-self: flex-end; border-bottom-right-radius: 4px; }
 .msg.err { background: var(--flash-error); color: var(--fail); }
 .chat-form { display: flex; gap: .5rem; padding: .75rem; border-top: 1px solid var(--border); background: var(--surface); }
-.chat-form input { flex: 1; }
+.chat-form input { flex: 1; min-width: 0; }
+.voice-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem;
+  padding: .5rem 1rem; border-bottom: 1px solid var(--border); }
+.voice-lang { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
+.voice-lang select { width: auto; min-height: 40px; }
+.voice-bar label.check { min-height: 40px; }
+.voice-note { margin: 0; padding: .5rem 1rem; background: var(--flash); border-bottom: 1px solid var(--border); }
+.btn.mic { min-width: 48px; padding: 0; font-size: 1.3rem; }
+.btn.mic.listening { background: var(--fail); border-color: var(--fail); color: #fff; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, .45); } 50% { box-shadow: 0 0 0 10px rgba(180, 35, 24, 0); } }
+@media (prefers-reduced-motion: reduce) { .btn.mic.listening { animation: none; } }
+.chat .privacy { margin: 0; padding: 0 1rem .6rem; background: var(--surface); }

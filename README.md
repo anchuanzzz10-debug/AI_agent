@@ -29,7 +29,8 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Incidents, approvals, backup → change → verify → rollback (post fields, plugin on/off) | ✅ |
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
-| Dashboard (laptop + phone, Malayalam/English): projects, results, settings, credentials, approvals, command chat | ✅ 25 tests, plus a real browser test at laptop and phone sizes. ⚠️ Not yet opened on your laptop or phone. |
+| Dashboard (laptop + phone, Malayalam/English): connect websites, WordPress connection test, results, settings, approvals, chat | ✅ Tests plus real-browser checks at laptop and phone sizes. ⚠️ Not yet used on your phone. |
+| Voice chat (browser speech, ml-IN / en-IN, spoken replies) | ✅ Page logic tested in a real browser with simulated speech engines. ⚠️ Recognition of your own voice not yet tested. |
 | Auto-start: passphrase in Windows Credential Manager + Task Scheduler task | ✅ Logic tested with a simulated credential store and a simulated `schtasks`. ⚠️ Not yet run on real Windows. |
 | Malayalam, Manglish and English command parsing (fixed command dictionary) | ✅ |
 | Malayalam voice: speech recognition and speech output providers, plus the evaluation tool | ⚠️ **Code only, NOT TESTED** (see "Malayalam voice" below) |
@@ -160,16 +161,27 @@ guardian dashboard serve
 ```
 Then open **http://127.0.0.1:8765** in your browser. Use the button at the top to switch between Malayalam and English.
 
-**On your phone (private, over Tailscale; free):**
+**On your phone (private HTTPS over Tailscale; free; needed for the phone's microphone):**
 1. Install Tailscale on the laptop and the phone, signed in to the same account.
-2. Find the laptop's Tailscale address by running `tailscale ip -4` (it looks like `100.x.y.z`).
-3. Start the dashboard on that address:
+2. In the Tailscale admin console, under **DNS**, turn on **MagicDNS** and **HTTPS Certificates**.
+3. Keep the dashboard on the laptop only (`guardian dashboard serve`), then in a second PowerShell window run:
    ```powershell
-   guardian dashboard serve --host 100.x.y.z --allow-remote
+   tailscale serve --bg 8765
    ```
-4. On the phone, open `http://100.x.y.z:8765`.
+   It prints an address like `https://your-laptop.tailnet-name.ts.net`. Open that address on your phone.
+4. To stop sharing it: `tailscale serve reset`.
 
-Tailscale traffic is encrypted and only your own devices can reach it. Never use `--host 0.0.0.0`: that exposes the dashboard to everyone on your Wi-Fi network.
+The dashboard never listens outside the laptop itself: Tailscale passes requests in over an encrypted connection that only your own devices can use. Never use `--host 0.0.0.0`, which exposes the dashboard to everyone on your Wi-Fi network.
+
+### Voice chat (Malayalam and English)
+On the **Chat** page, choose the speaking language (**മലയാളം** = ml-IN or **English** = en-IN), press 🎤 and speak. What you said appears as your message and is sent. Tick **🔊 Read replies aloud** to hear the answers.
+
+- It uses the browser's built-in speech service, so **your voice is sent to Google (Chrome) or Microsoft (Edge)**. It's free, but needs the internet.
+- **Browsers:** Chrome or Edge on the laptop, Chrome on Android. On other browsers the 🎤 button is hidden and the page says why.
+- **The microphone needs HTTPS:** `http://127.0.0.1` on the laptop is fine; on a phone, use the Tailscale `https://` address above.
+- **Malayalam spoken replies** need a Malayalam voice on the device. On Android: Settings → Text-to-speech → Google → install Malayalam. On Windows, Edge's online voices usually include Malayalam. If the device has none, the page says so and doesn't read Malayalam with an English voice.
+- Voice understands the same commands as typed chat (report, check, problems, SEO, help), including English words as Malayalam speech recognition writes them (ചെക്ക്, പ്രോബ്ലംസ്). It **can't approve changes**.
+- **How well it recognises your Malayalam isn't known until you try it.** Please report what it gets wrong.
 
 **Security:** a separate dashboard password (stored as a scrypt hash), a lockout after 5 wrong attempts (15 minutes), sessions that expire after 12 idle hours, CSRF protection on every change, strict security headers, and credential values that are never displayed. Restarting the dashboard logs everyone out.
 

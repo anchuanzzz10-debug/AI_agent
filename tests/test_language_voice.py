@@ -28,6 +28,13 @@ def test_detect_language(text, lang):
     ("ബാക്കപ്പ് എടുക്കൂ", "backup"),
     ("what is broken on Billing App", "list_incidents"),
     ("help", "help"),
+    # English words as Malayalam speech recognition writes them
+    ("ചെക്ക് ചെയ്യൂ", "run_check"),
+    ("ഒന്ന് ചെക്ക്", "run_check"),
+    ("എന്തെങ്കിലും പ്രോബ്ലംസ് ഉണ്ടോ", "list_incidents"),
+    ("ഇഷ്യൂസ് പറയൂ", "list_incidents"),
+    ("ഹെൽപ്പ്", "help"),
+    ("സമ്മറി തരൂ", "status_report"),
 ])
 def test_intents(text, intent):
     assert parse_command(text, PROJECTS).name == intent

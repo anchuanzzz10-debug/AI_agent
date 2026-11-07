@@ -18,17 +18,19 @@ from .detect import detect_language, normalize
 
 INTENTS: dict[str, dict[str, list[str]]] = {
     "status_report": {
-        "ml": ["റിപ്പോർട്ട്", "സ്ഥിതി", "എങ്ങനെയുണ്ട്", "സ്റ്റാറ്റസ്"],
+        "ml": ["റിപ്പോർട്ട്", "സ്ഥിതി", "എങ്ങനെയുണ്ട്", "സ്റ്റാറ്റസ്", "സമ്മറി"],
         "manglish": ["report", "status", "sthithi", "engane und", "enganeyund"],
         "en": ["report", "status", "how is", "summary"],
     },
     "run_check": {
-        "ml": ["പരിശോധിക്കൂ", "പരിശോധിക്കുക", "പരിശോധിക്ക്", "ചെക്ക് ചെയ്യൂ", "ചെക്ക് ചെയ്യ്"],
+        "ml": ["പരിശോധിക്കൂ", "പരിശോധിക്കുക", "പരിശോധിക്ക്", "ചെക്ക് ചെയ്യൂ", "ചെക്ക് ചെയ്യ്",
+               "ചെക്ക്", "സ്കാൻ"],  # English loanwords as speech recognition writes them
         "manglish": ["check cheyyu", "check cheyy", "parishodhikku", "parishodhikkuka", "onnu nokku"],
         "en": ["check", "scan", "inspect", "run checks"],
     },
     "list_incidents": {
-        "ml": ["പ്രശ്നങ്ങൾ", "പ്രശ്നം", "എറർ", "തകരാർ"],
+        "ml": ["പ്രശ്നങ്ങൾ", "പ്രശ്നം", "എറർ", "എററുകൾ", "തകരാർ", "പ്രോബ്ലം", "പ്രോബ്ലംസ്",
+               "ഇഷ്യൂ", "ഇഷ്യൂസ്"],
         "manglish": ["prashnam", "prashnangal", "error", "errors", "thakaraar"],
         "en": ["issues", "problems", "incidents", "errors", "what is broken"],
     },
@@ -38,12 +40,12 @@ INTENTS: dict[str, dict[str, list[str]]] = {
         "en": ["seo"],
     },
     "approve": {
-        "ml": ["അനുമതി നൽകുന്നു", "അംഗീകരിക്കുന്നു", "ചെയ്തോളൂ", "അനുമതി"],
+        "ml": ["അനുമതി നൽകുന്നു", "അംഗീകരിക്കുന്നു", "ചെയ്തോളൂ", "അനുമതി", "അപ്രൂവ്"],
         "manglish": ["approve", "sammatham", "cheytho", "cheythoo", "ok cheyyu"],
         "en": ["approve", "go ahead", "yes do it"],
     },
     "reject": {
-        "ml": ["വേണ്ട", "നിരസിക്കുന്നു", "റദ്ദാക്കൂ"],
+        "ml": ["വേണ്ട", "നിരസിക്കുന്നു", "റദ്ദാക്കൂ", "റിജക്ട്", "ക്യാൻസൽ"],
         "manglish": ["venda", "reject", "cancel", "raddaakku"],
         "en": ["reject", "cancel", "do not", "don't"],
     },
@@ -53,7 +55,7 @@ INTENTS: dict[str, dict[str, list[str]]] = {
         "en": ["backup", "back up"],
     },
     "help": {
-        "ml": ["സഹായം", "എന്തൊക്കെ ചെയ്യാം"],
+        "ml": ["സഹായം", "എന്തൊക്കെ ചെയ്യാം", "ഹെൽപ്പ്", "ഹെൽപ്"],
         "manglish": ["sahayam", "help"],
         "en": ["help", "what can you do"],
     },
