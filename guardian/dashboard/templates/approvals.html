@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>{{ t('pending_approvals') }}</h1>
+<p class="muted small">{{ t('approvals_note') }}</p>
 {% if not rows %}
   <div class="card muted">{{ t('none') }}</div>
 {% endif %}

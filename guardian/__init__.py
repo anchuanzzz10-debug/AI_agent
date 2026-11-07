@@ -8,4 +8,4 @@ Principles enforced in code (not left to an AI model):
   * Anything that could not be checked is reported as NOT_CHECKED with a reason.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"

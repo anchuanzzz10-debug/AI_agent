@@ -1,4 +1,4 @@
-# Test report: versions 0.1–0.4
+# Test report: versions 0.1–0.5
 
 Environment: a cloud build sandbox (Linux, Python 3.13). **This is not your laptop**, and the sandbox can't reach most websites.
 
@@ -38,6 +38,13 @@ Run with an in-memory credential store and a recorded fake `schtasks`, because t
 - **Voice (real Chromium at phone size, simulated speech engines; 15 scenarios):** Malayalam and English input, spoken replies in the matching voice, no Malayalam read by an English voice, continuous listening, auto-stop after silence, stop mid-sentence, the no-speech hint, denied microphone, unsupported browser, voice can't approve, and the microphone test with Chromium's fake microphone, a silent one and a denied one.
 - **AI (simulated Ollama model):** answers built from tool results, `<think>` text removed, no approve or credential tools, an invented "approve" tool is refused, invalid project IDs refused, string arguments handled, the SEO switch respected, tool rounds capped, an unavailable model reported honestly, one question at a time, the model server must be on this machine, dashboard routing and AI status, and the dashboard staying responsive while the AI thinks (tested on a real server; the test fails without the fix).
 - **Not verifiable here:** real speech recognition of your voice, real Malayalam speech output, and the real AI model's quality and speed. Ollama, its model registry and Hugging Face are blocked in the build sandbox.
+
+## Dashboard completion (version 0.5): 173 tests
+
+- **New:** overview summary (sites, problems, warnings, open incidents, pending approvals); "checked N min ago" per project, with a warning when the last check is older than 15 minutes (background monitoring may have stopped); Incidents page (open by severity, closed with a neutral style, evidence, history); check history (last 10 runs); System status page (AI, auto-start, Telegram, vault passphrase, security). The System page shows only yes/no for secrets; a test stores a token and a passphrase and confirms neither appears.
+- **Software apps:** a health-check address field. If it's empty, the health check is off, so no false alarm for a missing `/health`.
+- **Approvals page:** says plainly that approving only records the decision in this version.
+- **Real-browser check:** 7 pages × Malayalam/English × laptop/phone (28 views): all HTTP 200, no JavaScript errors, no sideways scrolling, health-check field shown only for apps.
 
 ## Verified on the owner's laptop (Windows 11, Lenovo, 2026-11-07)
 

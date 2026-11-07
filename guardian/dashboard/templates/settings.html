@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>⚙️ {{ t('settings_title') }}</h1>
+<p class="muted small">{{ t('sys_secrets_note') }}</p>
+
+<section class="card">
+  <h2>🤖 {{ t('sys_ai') }}</h2>
+  {% if not status.ai.enabled %}
+    <p>{{ t('sys_ai_off') }}</p>
+  {% else %}
+    <p>{{ '✅' if status.ai.ready else '❌' }} {{ status.ai.message }}</p>
+    <p class="muted small">{{ t('sys_ai_model_help') }}</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>🛰️ {{ t('sys_autostart') }}</h2>
+  {% if status.autostart.available %}
+    <pre class="small">{{ status.autostart.status }}</pre>
+  {% else %}
+    <p class="muted">{{ t('sys_autostart_na') }}</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>📨 {{ t('sys_telegram') }}</h2>
+  <p>{{ t('sys_telegram_yes') if status.telegram else t('sys_telegram_no') }}</p>
+</section>
+
+<section class="card">
+  <h2>🔐 {{ t('sys_vault') }}</h2>
+  <p>{{ t('sys_vault_yes') if status.passphrase_stored else t('sys_vault_no') }}</p>
+</section>
+
+<section class="card">
+  <h2>🛡️ {{ t('sys_security') }}</h2>
+  <p class="small">{{ t('sys_security_text') }}</p>
+</section>
+
+<section class="card">
+  <h2>📁 {{ t('sites_and_apps') }}: {{ status.projects }}</h2>
+  <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
+  <p class="muted small">{{ t('sys_version') }}: {{ status.version }} · {{ t('sys_data_dir') }}: <code>{{ status.data_dir }}</code></p>
+</section>
+{% endblock %}

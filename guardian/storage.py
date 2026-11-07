@@ -159,6 +159,15 @@ class ProjectStore:
                                 (row["run_id"],)).fetchall()
         return row["run_id"], row["ts"], [dict(r) for r in rows]
 
+    def run_history(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Most recent check runs with their result counts, newest first."""
+        sql = ("SELECT run_id, MIN(ts) AS ts, "
+               "SUM(status = 'fail') AS fail, SUM(status = 'warn') AS warn, "
+               "SUM(status = 'ok') AS ok, SUM(status = 'not_checked') AS not_checked "
+               "FROM check_results GROUP BY run_id ORDER BY MAX(id) DESC LIMIT ?")
+        with self._conn() as conn:
+            return [dict(r) for r in conn.execute(sql, (int(limit),)).fetchall()]
+
     # -- generic row access used by incidents / approvals ---------------
     def upsert(self, table: str, row: dict[str, Any]) -> None:
         if table not in {"incidents", "approvals"}:

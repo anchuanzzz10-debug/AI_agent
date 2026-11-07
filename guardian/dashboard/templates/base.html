@@ -22,8 +22,10 @@
 </header>
 <nav class="nav">
   <a href="/" class="{{ 'active' if path == '/' or path.startswith('/projects') }}"><span class="ico">🏠</span><span>{{ t('nav_overview') }}</span></a>
+  <a href="/incidents" class="{{ 'active' if path.startswith('/incidents') }}"><span class="ico">🚨</span><span>{{ t('nav_incidents') }}</span></a>
   <a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}"><span class="ico">✅</span><span>{{ t('nav_approvals') }}</span></a>
   <a href="/chat" class="{{ 'active' if path.startswith('/chat') }}"><span class="ico">💬</span><span>{{ t('nav_chat') }}</span></a>
+  <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><span class="ico">⚙️</span><span>{{ t('nav_settings') }}</span></a>
 </nav>
 {% endif %}
 <main class="{{ 'with-nav' if csrf else 'bare' }}">

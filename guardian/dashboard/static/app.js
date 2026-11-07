@@ -35,6 +35,15 @@
     });
   }
 
+  // Health-check field only matters for software applications.
+  var typeSelect = document.getElementById("type");
+  var healthField = document.getElementById("health-field");
+  if (typeSelect && healthField) {
+    var syncHealth = function () { healthField.hidden = typeSelect.value !== "application"; };
+    typeSelect.addEventListener("change", syncHealth);
+    syncHealth();
+  }
+
   // ---------------------------------------------------------------- chat
   var chat = document.querySelector(".chat");
   if (!chat) return;

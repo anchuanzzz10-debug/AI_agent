@@ -21,6 +21,11 @@
   <input id="id" name="id" value="{{ form.id or '' }}" required pattern="[a-z0-9][a-z0-9-]{1,40}" autocapitalize="none" autocomplete="off" spellcheck="false">
   <p class="muted small">{{ t('project_id_help') }}</p>
 
+  <div id="health-field" class="stack">
+    <label for="health_path">{{ t('health_path') }}</label>
+    <input id="health_path" name="health_path" value="{{ form.health_path or '' }}" placeholder="/health" autocapitalize="none">
+  </div>
+
   <label class="check"><input type="checkbox" name="seo" value="on" {{ 'checked' if form.seo }}> {{ t('seo_include') }}</label>
 
   <button class="btn primary" type="submit">{{ t('save') }}</button>

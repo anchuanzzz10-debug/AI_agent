@@ -29,7 +29,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Incidents, approvals, backup → change → verify → rollback (post fields, plugin on/off) | ✅ |
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
-| Dashboard (laptop + phone, Malayalam/English): connect websites, WordPress connection test, results, settings, approvals, chat | ✅ Tests plus real-browser checks at laptop and phone sizes. ⚠️ Not yet used on your phone. |
+| Dashboard (laptop + phone, Malayalam/English): overview with totals and a monitoring-freshness warning, Incidents (evidence + history), check history, System status (no secrets shown), connect websites/apps (health-check address for apps), WordPress connection test, settings, approvals, chat | ✅ 173 tests, plus a real-browser check of 7 pages × 2 languages × laptop/phone. ⚠️ Newest pages not yet opened on your laptop |
 | Voice chat (browser speech, ml-IN / en-IN, spoken replies, microphone test) | ✅ Page logic tested in a real browser with simulated speech engines. ⚠️ Recognition of your own voice not yet tested. |
 | AI brain: local model (Ollama) answers free-form questions in Malayalam/English using read-only tools | ✅ Tool handling and safety rules tested with a simulated model. ⚠️ The real model's answer quality, speed and Malayalam not yet tested (needs your laptop). |
 | Auto-start: passphrase in Windows Credential Manager + Task Scheduler task | ✅ Logic tested with a simulated credential store and a simulated `schtasks`. ⚠️ Not yet run on real Windows. |
@@ -38,7 +38,8 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 
 ## Not built yet (planned)
 - Search Console integration (indexing status, keyword clicks and positions). Reported as NOT CHECKED until built.
-- Telegram bot that *receives* messages: voice notes, Approve/Reject buttons. Approvals are by command line for now.
+- Applying approved changes automatically: the change engine (backup → change → verify → rollback) exists and is tested, but nothing creates change requests or carries out approved ones yet. Approving in the dashboard only records your decision.
+- Telegram bot that *receives* messages (voice notes, Approve/Reject buttons).
 - Full database and file backups. Without them the agent refuses plugin, theme and core updates.
 - AI diagnosis of unfamiliar problems, and AI-proposed fixes (the AI can currently only read).
 - Screenshot comparison, form and checkout tests, the custom-app connector (depends on the app's stack).

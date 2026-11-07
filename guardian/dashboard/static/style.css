@@ -129,3 +129,31 @@ ol.steps li { margin-bottom: .4rem; overflow-wrap: anywhere; }
 .ai-status { margin: 0; padding: .45rem 1rem; border-bottom: 1px solid var(--border); }
 .ai-badge { margin-top: .4rem; font-size: .75rem; color: var(--muted); }
 .chat .privacy { margin: 0; padding: 0 1rem .6rem; background: var(--surface); }
+
+/* Overview summary */
+.summary-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+.stat { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: .6rem .9rem; color: var(--text); text-decoration: none; }
+.stat .num { font-size: 1.6rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat .lbl { font-size: .82rem; color: var(--muted); }
+.stat.bad .num { color: var(--fail); } .stat.warn .num { color: var(--warn); }
+
+/* Incidents */
+.incident { border-left: 5px solid var(--nc); }
+.incident.sev-critical, .incident.sev-high { border-left-color: var(--fail); }
+.incident.sev-medium { border-left-color: var(--warn); }
+.incident h2 { font-size: 1rem; overflow-wrap: anywhere; }
+.incident.closed { border-left-color: var(--ok); opacity: .85; }
+
+/* History table */
+.table-wrap { overflow-x: auto; }
+table.history { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+table.history th, table.history td { padding: .45rem .5rem; border-bottom: 1px solid var(--border); text-align: center; }
+table.history th:first-child, table.history td:first-child { text-align: left; white-space: nowrap; }
+table.history tr.row-bad td { color: var(--fail); font-weight: 600; }
+
+/* Five items in the phone bottom bar */
+@media (max-width: 859px) {
+  .nav a { font-size: .7rem; min-width: 0; }
+  .nav a span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+}

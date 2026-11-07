@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% macro incident(row, closed=False) %}
+  {% set i = row.inc %}
+  <article class="card incident {{ 'closed' if closed else 'sev-' ~ i.severity }}">
+    <div class="card-head">
+      <h2>{{ i.title }}</h2>
+      <span class="tag">{{ i.severity }}</span>
+    </div>
+    <p class="small">
+      <a href="/projects/{{ row.project.id }}">{{ row.project.name }}</a> · {{ i.id }} ·
+      <strong>{{ t('st_' ~ i.status) }}</strong>
+    </p>
+    <p class="small muted">{{ t('opened') }}: {{ row.opened_at }} · {{ t('occurrences') }}: {{ i.data.occurrences or 1 }} · <code>{{ i.check_name }}</code></p>
+    {% if i.data.evidence %}
+    <details>
+      <summary>🔎 {{ t('evidence') }}</summary>
+      <pre class="small">{{ i.data.evidence | tojson(indent=2) }}</pre>
+    </details>
+    {% endif %}
+    {% if row.history %}
+    <details>
+      <summary>🕘 {{ t('history') }} ({{ row.history|length }})</summary>
+      <ul class="results">
+        {% for h in row.history %}<li><span class="muted small">{{ h.at }}</span> · {{ h.event }}{% if h.note %} · {{ h.note }}{% endif %}</li>{% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </article>
+{% endmacro %}
+
+{% block content %}
+<h1>{{ t('incidents_title') }}</h1>
+
+<h2>🚨 {{ t('open_incidents') }} ({{ open_rows|length }})</h2>
+{% if not open_rows %}<div class="card muted">✅ {{ t('none') }}</div>{% endif %}
+{% for row in open_rows %}{{ incident(row) }}{% endfor %}
+
+{% if closed_rows %}
+<h2>📁 {{ t('closed_incidents') }}</h2>
+{% for row in closed_rows %}{{ incident(row, True) }}{% endfor %}
+{% endif %}
+{% endblock %}

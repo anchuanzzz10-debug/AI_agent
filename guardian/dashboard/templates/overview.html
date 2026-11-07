@@ -4,6 +4,16 @@
   <h1>{{ t('sites_and_apps') }}</h1>
   <a class="btn primary" href="/projects/new">＋ {{ t('add_project') }}</a>
 </div>
+{% if cards %}
+<div class="summary-bar">
+  <div class="stat"><span class="num">{{ totals.projects }}</span><span class="lbl">{{ t('sum_projects') }}</span></div>
+  <div class="stat {{ 'bad' if totals.fail }}"><span class="num">{{ totals.fail }}</span><span class="lbl">{{ t('sum_problems') }}</span></div>
+  <div class="stat {{ 'warn' if totals.warn }}"><span class="num">{{ totals.warn }}</span><span class="lbl">{{ t('sum_warnings') }}</span></div>
+  <a class="stat {{ 'bad' if totals.incidents }}" href="/incidents"><span class="num">{{ totals.incidents }}</span><span class="lbl">{{ t('sum_incidents') }}</span></a>
+  <a class="stat {{ 'warn' if totals.pending }}" href="/approvals"><span class="num">{{ totals.pending }}</span><span class="lbl">{{ t('sum_pending') }}</span></a>
+</div>
+{% if totals.stale %}<div class="flash error" role="alert">{{ t('stale_banner').replace('{m}', stale_after|string) }}</div>{% endif %}
+{% endif %}
 {% if not cards %}
   <div class="card">
     <p class="muted">{{ t('no_projects') }}</p>
@@ -26,7 +36,9 @@
       <span class="count nc" title="{{ t('not_checked') }}">⏸️ {{ c.counts.not_checked }}</span>
     </div>
     <p class="small">{{ t('last_check') }}: {{ c.checked_at or t('never_checked') }}
+      {% if c.age_min is not none %}<span class="muted">({{ t('checked_now') if c.age_min < 1 else t('checked_ago').replace('{n}', c.age_min|string) }})</span>{% endif %}
       {% if p.enabled('seo') %}· SEO ✓{% endif %}</p>
+    {% if c.stale %}<p class="small alert-text">{{ t('stale_card').replace('{n}', c.age_min|string) }}</p>{% endif %}
     {% if c.incidents %}<p class="small alert-text">🚨 {{ t('open_incidents') }}: {{ c.incidents|length }}</p>{% endif %}
     {% if c.pending %}<p class="small"><a href="/approvals">✅ {{ t('pending_approvals') }}: {{ c.pending|length }}</a></p>{% endif %}
     <div class="actions">

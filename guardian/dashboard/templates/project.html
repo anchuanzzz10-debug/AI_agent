@@ -34,6 +34,22 @@
   {% endif %}
 {% endfor %}
 
+{% if history %}
+<section class="card">
+  <h2>🕘 {{ t('history_title') }}</h2>
+  <div class="table-wrap">
+  <table class="history">
+    <thead><tr><th>{{ t('time') }}</th><th title="{{ t('problems') }}">❌</th><th title="{{ t('warnings') }}">⚠️</th><th title="{{ t('ok') }}">✅</th><th title="{{ t('not_checked') }}">⏸️</th></tr></thead>
+    <tbody>
+    {% for h in history %}
+      <tr class="{{ 'row-bad' if h.fail else '' }}"><td>{{ h.at }}</td><td>{{ h.fail }}</td><td>{{ h.warn }}</td><td>{{ h.ok }}</td><td>{{ h.not_checked }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>🚨 {{ t('open_incidents') }}</h2>
   {% if s.incidents %}
@@ -57,6 +73,10 @@
     <input id="key_paths" name="key_paths" value="{{ p.key_paths|join(', ') }}" autocapitalize="none">
     <label for="expected_text">{{ t('expected_text') }}</label>
     <input id="expected_text" name="expected_text" value="{{ p.expected_text or '' }}">
+    {% if p.type.value == 'application' %}
+    <label for="health_path">{{ t('health_path') }}</label>
+    <input id="health_path" name="health_path" value="{{ p.health_path or '' }}" placeholder="/health" autocapitalize="none">
+    {% endif %}
     <button class="btn primary" type="submit">{{ t('save') }}</button>
   </form>
 </section>

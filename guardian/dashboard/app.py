@@ -17,11 +17,12 @@ from starlette.concurrency import run_in_threadpool
 
 from ..ai.agent import Agent
 from ..ai.ollama import OllamaClient
+from .. import __version__, autostart, secrets_store
 from ..approvals import ApprovalGate, ApprovalStatus
 from ..checks.wordpress import (CHANGE_PASSWORD as WP_CHANGE_PASSWORD, CHANGE_USER as WP_CHANGE_USER,
                                 READ_PASSWORD as WP_READ_PASSWORD, READ_USER as WP_READ_USER,
                                 WordPressInspector)
-from ..incidents import IncidentManager
+from ..incidents import CLOSED, IncidentManager, IncidentStatus
 from ..models import FEATURES, ConfigError, ProjectConfig, ProjectType, _INCOMPATIBLE
 from ..monitor import Monitor, internet_available
 from ..notify import Notifier
@@ -39,6 +40,8 @@ FLASH_KEYS = {"saved", "created", "created_wp", "deleted", "approved", "rejected
               "csrf_failed"}
 
 CheckRunner = Callable[[ProjectConfig], None]
+# Background monitoring checks every 5 minutes; older results suggest it stopped.
+STALE_AFTER_MIN = 15
 
 
 def default_check_runner(home: Path, vault: Vault) -> CheckRunner:
@@ -93,7 +96,8 @@ def wp_verdict(results) -> str:
 def create_app(home: Path, config_dir: Path, vault: Vault,
                check_runner: CheckRunner | None = None, sessions: auth.SessionStore | None = None,
                http_client_factory: Callable[[], httpx.Client] = _default_http_client,
-               ai_client: OllamaClient | None = None) -> FastAPI:
+               ai_client: OllamaClient | None = None,
+               clock: Callable[[], float] = time.time) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -154,8 +158,10 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         if not project.enabled("seo"):
             results = [r for r in results if r["category"] != "seo"]
         counts = {s: sum(r["status"] == s for r in results) for s in ("fail", "warn", "ok", "not_checked")}
+        age_min = int((clock() - ts) // 60) if ts else None
         return {"project": project, "run_id": run_id,
                 "checked_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else None,
+                "age_min": age_min, "stale": age_min is not None and age_min > STALE_AFTER_MIN,
                 "results": results, "counts": counts, "running": project.id in running,
                 "incidents": IncidentManager(store).list(),
                 "pending": ApprovalGate(store).list(ApprovalStatus.PENDING)}
@@ -171,6 +177,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                    "https": project.url.startswith("https://"),
                    "profile_url": project.url + "/wp-admin/profile.php#application-passwords-section"},
             "wp_labels": WP_LABELS,
+            "history": [h | {"at": time.strftime("%Y-%m-%d %H:%M", time.localtime(h["ts"]))}
+                        for h in store_for(project.id).run_history(10)],
         }
 
     # -- middleware -------------------------------------------------------
@@ -233,7 +241,14 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         if not session:
             return to_login()
         cards = [summarize(p) for p in registry.load_all()]
-        return render(request, "overview.html", session, cards=cards)
+        totals = {"projects": len(cards),
+                  "fail": sum(c["counts"]["fail"] for c in cards),
+                  "warn": sum(c["counts"]["warn"] for c in cards),
+                  "incidents": sum(len(c["incidents"]) for c in cards),
+                  "pending": sum(len(c["pending"]) for c in cards),
+                  "stale": [c["project"].name for c in cards if c["stale"]]}
+        return render(request, "overview.html", session, cards=cards, totals=totals,
+                      stale_after=STALE_AFTER_MIN)
 
     @app.get("/projects/new", response_class=HTMLResponse)
     def new_project_page(request: Request):
@@ -244,16 +259,28 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
 
     @app.post("/projects/new")
     def create_project(request: Request, csrf: str = Form(""), id: str = Form(""), name: str = Form(""),
-                       type: str = Form("wordpress"), url: str = Form(""), seo: str = Form("")):
+                       type: str = Form("wordpress"), url: str = Form(""), seo: str = Form(""),
+                       health_path: str = Form("")):
         session = session_of(request)
         if not session:
             return to_login()
         if not auth.csrf_ok(session, csrf):
             return back("/projects/new", "csrf_failed")
-        form = {"id": id.strip(), "name": name.strip(), "type": type, "url": url.strip(), "seo": bool(seo)}
+        form = {"id": id.strip(), "name": name.strip(), "type": type, "url": url.strip(), "seo": bool(seo),
+                "health_path": health_path.strip()}
         try:
+            features = {"seo": form["seo"]}
+            extra = {}
+            if form["type"] == "application":
+                hp = form["health_path"]
+                if hp and not hp.startswith("/"):
+                    raise ConfigError("Health check address must start with / (e.g. /health)")
+                # No health address given: don't invent one (it would raise a false alarm).
+                features["health_endpoint"] = bool(hp)
+                if hp:
+                    extra["health_path"] = hp
             project = ProjectConfig(id=form["id"], name=form["name"] or form["id"], type=form["type"],
-                                    url=form["url"], features={"seo": form["seo"]})
+                                    url=form["url"], features=features, **extra)
             registry.add(project)
             store_for(project.id).audit("dashboard", "project_created", features=project.features)
         except ConfigError as exc:
@@ -335,6 +362,13 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             project.key_paths = paths
             expected = str(form.get("expected_text", "")).strip()
             project.expected_text = expected or None
+            if project.type is ProjectType.APPLICATION:
+                hp = str(form.get("health_path", "")).strip()
+                if hp and not hp.startswith("/"):
+                    raise ConfigError("Health check address must start with / (e.g. /health)")
+                if project.enabled("health_endpoint") and not hp:
+                    raise ConfigError("Enter a health check address, or turn off the app health check")
+                project.health_path = hp or None
             registry.save(project)
             store_for(pid).audit("dashboard", "settings_saved", features=project.features,
                                  key_paths=project.key_paths)
@@ -390,6 +424,50 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
         ApprovalGate(store_for(registry.get(pid).id)).decide(aid, approve=decision == "approve",
                                                               actor="owner:dashboard")
         return back("/approvals", "approved" if decision == "approve" else "rejected")
+
+    @app.get("/incidents", response_class=HTMLResponse)
+    def incidents_page(request: Request):
+        session = session_of(request)
+        if not session:
+            return to_login()
+        open_rows, closed_rows = [], []
+        for p in registry.load_all():
+            for inc in IncidentManager(store_for(p.id)).list(include_closed=True):
+                row = {"project": p, "inc": inc,
+                       "opened_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(inc["opened"])),
+                       "history": [h | {"at": time.strftime("%Y-%m-%d %H:%M", time.localtime(h["ts"]))}
+                                   for h in inc["data"].get("history", [])]}
+                (closed_rows if IncidentStatus(inc["status"]) in CLOSED else open_rows).append(row)
+        sev = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        open_rows.sort(key=lambda r: (sev.get(r["inc"]["severity"], 9), -r["inc"]["opened"]))
+        closed_rows.sort(key=lambda r: -r["inc"]["updated"])
+        return render(request, "incidents.html", session, open_rows=open_rows, closed_rows=closed_rows[:30])
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page(request: Request):
+        session = session_of(request)
+        if not session:
+            return to_login()
+        # Only yes/no facts are computed here; no secret value reaches the template.
+        system_names = vault.system().names()
+        ai = {"enabled": ai_client is not None}
+        if ai_client is not None:
+            st = ai_client.status()
+            ai.update(model=ai_client.cfg.model, ready=st.ready, message=st.message)
+        try:
+            auto = {"available": True, "status": autostart.status()}
+        except autostart.AutostartError:
+            auto = {"available": False, "status": ""}
+        status = {
+            "ai": ai,
+            "telegram": "telegram_bot_token" in system_names and "telegram_default_chat_id" in system_names,
+            "passphrase_stored": secrets_store.get_passphrase(home) is not None,
+            "autostart": auto,
+            "projects": len(registry.load_all()),
+            "version": __version__,
+            "data_dir": str(home),
+        }
+        return render(request, "settings.html", session, status=status)
 
     @app.get("/chat", response_class=HTMLResponse)
     def chat_page(request: Request):
