@@ -131,3 +131,11 @@ def test_wp_connector_with_least_privilege_role(vault):
     assert r["wp:updates"].status is CheckStatus.WARN
     assert r["errors:php_log"].status is CheckStatus.FAIL
     assert r["seo:rank_math_settings"].status is CheckStatus.OK
+
+
+def test_rank_math_line_only_for_wordpress():
+    site = FakeWordPress()
+    wp = by_name(seo_checks(make_project(seo=True), site.client()))
+    assert "seo:plugin_detect" in wp
+    other = by_name(seo_checks(make_project("plain-site", "website", seo=True), site.client()))
+    assert "seo:plugin_detect" not in other

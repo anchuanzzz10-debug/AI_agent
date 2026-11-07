@@ -14,6 +14,7 @@
     guardian passphrase store | status | remove     (Windows Credential Manager)
     guardian autostart install [--interval 5] | start | stop | status | remove
     guardian dashboard password | serve [--host 127.0.0.1 --port 8765 --allow-remote]
+    guardian ai status | on | off | model NAME | ask "question"
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from pathlib import Path
 import httpx
 
 from . import autostart, secrets_store
+from .ai.config import AIConfigError
 from .approvals import ApprovalGate, ApprovalStatus
 from .incidents import IncidentManager
 from .language import parse_command
@@ -210,12 +212,67 @@ def cmd_dashboard(args) -> int:
                          "Use your Tailscale address with --allow-remote (see README), or keep 127.0.0.1.")
     import uvicorn
     from .dashboard.app import create_app
-    app = create_app(home, config_dir(), _vault())
+    from .ai import config as ai_config
+    from .ai.ollama import OllamaClient
+    cfg = ai_config.load(home)
+    ai_client = OllamaClient(cfg) if cfg.enabled else None
+    if ai_client:
+        print(f"AI: {ai_client.status().message}")
+    app = create_app(home, config_dir(), _vault(), ai_client=ai_client)
     if not is_loopback(args.host):
         print(f"WARNING: listening on {args.host}. Only do this on a private network such as Tailscale.")
     print(f"Dashboard: http://{'127.0.0.1' if is_loopback(args.host) else args.host}:{args.port}  (Ctrl+C to stop)")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning", server_header=False)
     return 0
+
+
+def cmd_ai(args) -> int:
+    from .ai import config as ai_config
+    from .ai.agent import Agent
+    from .ai.ollama import OllamaClient
+    from .language import detect_language
+    home = guardian_home()
+    cfg = ai_config.load(home)
+    if args.action in ("on", "off"):
+        cfg.enabled = args.action == "on"
+        ai_config.save(home, cfg)
+        print(f"AI {'enabled' if cfg.enabled else 'disabled'} (model {cfg.model}).")
+        return 0
+    if args.action == "model":
+        if not args.text:
+            raise VaultError("Give a model name, e.g. guardian ai model qwen3:8b")
+        cfg.model = args.text
+        ai_config.save(home, cfg)
+        print(f"AI model set to {cfg.model}. Download it with: ollama pull {cfg.model}")
+        return 0
+    client = OllamaClient(cfg)
+    status = client.status()
+    if args.action == "status":
+        print(f"Enabled: {'yes' if cfg.enabled else 'no'}")
+        print(f"Model:   {cfg.model}")
+        print(f"Server:  {cfg.base_url}")
+        print(f"Status:  {status.message}")
+        if status.models:
+            print("Installed models: " + ", ".join(status.models))
+        return 0 if status.ready else 4
+    # ask
+    if not args.text:
+        raise VaultError('Give a question, e.g. guardian ai ask "is my website ok?"')
+    reg = Registry(config_dir())
+    vault = _vault()
+
+    def start_check(pid: str) -> bool:
+        with _client() as http:
+            Monitor(reg.get(pid), ProjectStore(guardian_home(), pid), vault.project(pid), http,
+                    Notifier(vault.system()), confirm_delay_s=0).run()
+        return True
+    agent = Agent(client, reg.load_all, lambda pid: ProjectStore(guardian_home(), pid), start_check)
+    lang = "ml" if detect_language(args.text) in ("ml", "manglish") else "en"
+    started = time.monotonic()
+    reply = agent.answer(args.text, lang)
+    print(reply.text)
+    print(f"\n[{time.monotonic() - started:.0f}s · tools: {', '.join(reply.tools_used) or 'none'}]")
+    return 0 if reply.ok else 4
 
 
 def cmd_autostart(args) -> int:
@@ -368,6 +425,11 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("--interval", type=float, default=5, metavar="MINUTES")
     au.set_defaults(fn=cmd_autostart)
 
+    ai = sub.add_parser("ai", help="local AI model (Ollama)")
+    ai.add_argument("action", choices=["status", "on", "off", "model", "ask"])
+    ai.add_argument("text", nargs="?")
+    ai.set_defaults(fn=cmd_ai)
+
     db = sub.add_parser("dashboard", help="web dashboard (Malayalam / English)")
     db.add_argument("action", choices=["password", "serve"])
     db.add_argument("--host", default="127.0.0.1")
@@ -385,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     try:
         return args.fn(args)
-    except (ConfigError, VaultError, autostart.AutostartError) as exc:
+    except (ConfigError, VaultError, autostart.AutostartError, AIConfigError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

@@ -1,4 +1,4 @@
-# Test report: versions 0.1–0.2
+# Test report: versions 0.1–0.4
 
 Environment: a cloud build sandbox (Linux, Python 3.13). **This is not your laptop**, and the sandbox can't reach most websites.
 
@@ -31,6 +31,13 @@ Run with an in-memory credential store and a recorded fake `schtasks`, because t
 - **The monitoring loop survives a failed run.**
 
 **Not verified until run on your laptop:** real Credential Manager storage, real `schtasks` acceptance of the XML, the hidden PowerShell start at login, and the Task Scheduler status output (its labels may differ on non-English Windows).
+
+## Dashboard, voice and AI (versions 0.3–0.4): 150 tests in total
+
+- **Dashboard:** login and lockout, CSRF protection, language switch, write-only credentials, escaping of malicious input, approvals, connecting websites, and the WordPress connection test against the simulated WordPress site.
+- **Voice (real Chromium at phone size, simulated speech engines; 15 scenarios):** Malayalam and English input, spoken replies in the matching voice, no Malayalam read by an English voice, continuous listening, auto-stop after silence, stop mid-sentence, the no-speech hint, denied microphone, unsupported browser, voice can't approve, and the microphone test with Chromium's fake microphone, a silent one and a denied one.
+- **AI (simulated Ollama model):** answers built from tool results, `<think>` text removed, no approve or credential tools, an invented "approve" tool is refused, invalid project IDs refused, string arguments handled, the SEO switch respected, tool rounds capped, an unavailable model reported honestly, one question at a time, the model server must be on this machine, dashboard routing and AI status, and the dashboard staying responsive while the AI thinks (tested on a real server; the test fails without the fix).
+- **Not verifiable here:** real speech recognition of your voice, real Malayalam speech output, and the real AI model's quality and speed. Ollama, its model registry and Hugging Face are blocked in the build sandbox.
 
 ## Real-network tests (limited by the sandbox)
 - Command-line flow run end to end: init, add projects, check, report, incidents, the SEO toggle and the `lang` command.

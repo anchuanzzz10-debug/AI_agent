@@ -60,7 +60,9 @@ def server(home, vault, tmp_path):
     store.record_check("r1", ok("uptime:/", "uptime", "HTTP 200"))
     store.record_check("r1", warn("security:headers", "security", "Missing x-content-type-options"))
     auth.set_password(home, DASH_PW)
-    app = create_app(home, config, vault, check_runner=lambda p: None)
+    from test_ai import FakeOllama
+    app = create_app(home, config, vault, check_runner=lambda p: None,
+                     ai_client=FakeOllama([{"content": "AI-REPLY-OK"}] * 50).client())
     port = _free_port()
     srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
     thread = threading.Thread(target=srv.run, daemon=True)
@@ -126,3 +128,8 @@ def test_voice_chat_in_browser(server):
     assert "മൈക്രോഫോണുകൾ" in sound["note"]
     assert results["mic_test_silent"]["note"].startswith("❌ ശബ്ദം ഒട്ടും കേട്ടില്ല")
     assert "അനുമതി" in results["mic_test_denied"]["note"]
+
+    # free-form question goes to the AI (simulated model) and is labelled
+    ai = results["ai_free_question"]
+    assert ai["status"].startswith("🤖") and "qwen3:8b" in ai["status"]
+    assert ai["reply"].startswith("AI-REPLY-OK") and "🤖" in ai["reply"]

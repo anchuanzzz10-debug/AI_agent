@@ -30,7 +30,8 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 | Reports in Malayalam and English, with a "Not checked (and why)" section | ✅ |
 | Telegram alerts (sending) | ✅ Code works. ⚠️ Not yet tested with a real bot. |
 | Dashboard (laptop + phone, Malayalam/English): connect websites, WordPress connection test, results, settings, approvals, chat | ✅ Tests plus real-browser checks at laptop and phone sizes. ⚠️ Not yet used on your phone. |
-| Voice chat (browser speech, ml-IN / en-IN, spoken replies) | ✅ Page logic tested in a real browser with simulated speech engines. ⚠️ Recognition of your own voice not yet tested. |
+| Voice chat (browser speech, ml-IN / en-IN, spoken replies, microphone test) | ✅ Page logic tested in a real browser with simulated speech engines. ⚠️ Recognition of your own voice not yet tested. |
+| AI brain: local model (Ollama) answers free-form questions in Malayalam/English using read-only tools | ✅ Tool handling and safety rules tested with a simulated model. ⚠️ The real model's answer quality, speed and Malayalam not yet tested (needs your laptop). |
 | Auto-start: passphrase in Windows Credential Manager + Task Scheduler task | ✅ Logic tested with a simulated credential store and a simulated `schtasks`. ⚠️ Not yet run on real Windows. |
 | Malayalam, Manglish and English command parsing (fixed command dictionary) | ✅ |
 | Malayalam voice: speech recognition and speech output providers, plus the evaluation tool | ⚠️ **Code only, NOT TESTED** (see "Malayalam voice" below) |
@@ -39,7 +40,7 @@ It is built to manage **4 WordPress websites + 1 custom application** to start w
 - Search Console integration (indexing status, keyword clicks and positions). Reported as NOT CHECKED until built.
 - Telegram bot that *receives* messages: voice notes, Approve/Reject buttons. Approvals are by command line for now.
 - Full database and file backups. Without them the agent refuses plugin, theme and core updates.
-- Local AI model for open questions and diagnosis of unfamiliar problems.
+- AI diagnosis of unfamiliar problems, and AI-proposed fixes (the AI can currently only read).
 - Screenshot comparison, form and checkout tests, the custom-app connector (depends on the app's stack).
 
 ## Install (Windows 11)
@@ -186,6 +187,34 @@ On the **Chat** page, choose the speaking language (**മലയാളം** = ml-
 **Security:** a separate dashboard password (stored as a scrypt hash), a lockout after 5 wrong attempts (15 minutes), sessions that expire after 12 idle hours, CSRF protection on every change, strict security headers, and credential values that are never displayed. Restarting the dashboard logs everyone out.
 
 **Chat (this phase):** a fixed set of commands with no AI model: report, check, problems, SEO report and help. It never approves anything; use the Approvals page. Free-form AI answers come in the next phase.
+
+## AI brain (free, local, private)
+
+The chat understands free-form questions such as "ഇന്ന് എന്തെങ്കിലും ശ്രദ്ധിക്കേണ്ടതുണ്ടോ?" or "why is there a warning on my site?" through a free AI model running on your laptop with **Ollama**. Nothing is sent to the internet.
+
+```powershell
+winget install Ollama.Ollama
+```
+Close PowerShell and open it again, then download the model (about 5 GB, once):
+```powershell
+ollama pull qwen3:8b
+```
+```powershell
+guardian ai status
+```
+Expected: `Status:  Ready: qwen3:8b`. Then try it from the command line:
+```powershell
+guardian ai ask "is my website ok?"
+```
+or restart `guardian dashboard serve` and ask in the **Chat** page, by typing or with 🎤.
+
+- **How it decides:** simple commands (report, check, problems, SEO, help) are still answered instantly without AI. Anything else goes to the AI, and the reply is labelled 🤖 along with the tools it used.
+- **What the AI can do:** list projects, read check results and incidents, read SEO results, list pending approvals, and start a check (which only reads websites).
+- **What it can't do:** approve, change a website, or see passwords. No such tool exists. It's told to answer only from those results and to say "not checked" honestly.
+- **Speed on your laptop:** about 10–60 seconds per answer, running on the CPU. The first answer after starting is slower while the model loads. Only one question is answered at a time.
+- **Smaller and faster model** (lower quality): `ollama pull qwen3:4b`, then `guardian ai model qwen3:4b`.
+- **Turn it off:** `guardian ai off`. Simple commands keep working.
+- **Malayalam quality:** a free 8B model's Malayalam may sound unnatural, and it can make mistakes. Check important answers against the project page.
 
 ## Alerts (Telegram)
 

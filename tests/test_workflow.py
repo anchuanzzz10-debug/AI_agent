@@ -243,3 +243,13 @@ def test_report_has_no_seo_section_when_disabled(store, vault):
     text = build_report(on, store, summary.results, summary.run_id)
     assert "SEO റിപ്പോർട്ട് / SEO report" in text
     assert "Not checked" in text
+
+
+def test_report_summary_counts_seo_not_checked(store, vault):
+    site = FakeWordPress()
+    on = make_project(seo=True)
+    summary = _monitor(on, store, vault, site).run()
+    text = build_report(on, store, summary.results, summary.run_id)
+    seo_line = next(l for l in text.splitlines() if l.startswith("SEO: Problems"))
+    # Search Console indexing + keywords + Rank Math settings (no WordPress login)
+    assert "Not checked 3" in seo_line

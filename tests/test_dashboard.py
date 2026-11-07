@@ -292,7 +292,7 @@ def test_chat_unknown_is_honest(setup):
     c = client(setup)
     token = csrf_of(c.get("/").text)
     reply = _chat(c, "what's the weather", token).json()
-    assert reply["intent"] == "unknown" and "next phase" in reply["reply"]
+    assert reply["intent"] == "unknown" and "AI model" in reply["reply"]
 
 
 # ---------------- serving ----------------

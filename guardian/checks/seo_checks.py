@@ -6,7 +6,7 @@ from html.parser import HTMLParser
 
 import httpx
 
-from ..models import ProjectConfig
+from ..models import ProjectConfig, ProjectType
 from .base import CheckResult, Severity, fail, not_checked, ok, warn
 from .http_checks import fetch
 
@@ -122,10 +122,11 @@ def seo_checks(project: ProjectConfig, client: httpx.Client) -> list[CheckResult
                                 Severity.LOW))
         else:
             results.append(ok("seo:h1", "seo", "Exactly one <h1>"))
-        rank_math = any("rank math" in c.lower() for c in parser.comments) or "rank-math" in home.text[:50000]
-        results.append(ok("seo:plugin_detect", "seo",
-                          "Rank Math output detected on homepage" if rank_math
-                          else "Rank Math output not detected on homepage", rank_math=rank_math))
+        if project.type is ProjectType.WORDPRESS:   # Rank Math only exists on WordPress
+            rank_math = any("rank math" in c.lower() for c in parser.comments) or "rank-math" in home.text[:50000]
+            results.append(ok("seo:plugin_detect", "seo",
+                              "Rank Math output detected on homepage" if rank_math
+                              else "Rank Math output not detected on homepage", rank_math=rank_math))
 
     # sitemap
     candidates = sitemaps or [project.url + "/sitemap_index.xml", project.url + "/sitemap.xml",

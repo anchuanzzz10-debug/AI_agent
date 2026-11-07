@@ -8,7 +8,7 @@ the user is sent to the Approvals page, where an explicit button is required.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 from urllib.parse import urlparse
 
 from ..incidents import IncidentManager
@@ -17,12 +17,16 @@ from ..language.detect import normalize
 from ..models import ProjectConfig
 from ..storage import ProjectStore
 
+if TYPE_CHECKING:
+    from ..ai.agent import Agent
+
 
 @dataclass
 class ChatContext:
     projects: list[ProjectConfig]
     store_for: Callable[[str], ProjectStore]
     start_check: Callable[[str], bool]      # returns False if already running
+    ai: Agent | None = None                  # local AI model for free-form questions
 
 
 def _reply_lang(detected: str) -> str:
@@ -87,8 +91,12 @@ def respond(message: str, ctx: ChatContext) -> dict:
     intent = parse_command(message, projects_map)
     lang = _reply_lang(intent.language)
     project = _match_project(message, ctx.projects, intent.project)
+    if intent.name == "unknown" and ctx.ai is not None:
+        answer = ctx.ai.answer(message, lang)
+        return {"reply": answer.text, "lang": lang, "intent": "ai", "source": "ai",
+                "tools": answer.tools_used, "ai_ok": answer.ok, "project": None}
     reply = _dispatch(intent.name, project, ctx, lang)
-    return {"reply": reply, "lang": lang, "intent": intent.name,
+    return {"reply": reply, "lang": lang, "intent": intent.name, "source": "commands",
             "project": project.id if project else None}
 
 
@@ -138,5 +146,5 @@ def _dispatch(name: str, project: ProjectConfig | None, ctx: ChatContext, lang: 
     if name == "backup":
         return ("പൂർണ്ണ ബാക്കപ്പ് സൗകര്യം ഇതുവരെ നിർമ്മിച്ചിട്ടില്ല. ഓരോ മാറ്റത്തിനും മുൻപ് മാറ്റുന്ന ഭാഗത്തിന്റെ ബാക്കപ്പ് മാത്രമേ എടുക്കുന്നുള്ളൂ."
                 if ml else "Full backups are not built yet. Only the item being changed is backed up before each change.")
-    return ("ക്ഷമിക്കണം, അത് എനിക്ക് മനസ്സിലായില്ല. \"സഹായം\" എന്ന് എഴുതിയാൽ ഉദാഹരണങ്ങൾ കാണാം. സ്വതന്ത്രമായ ചോദ്യങ്ങൾ മനസ്സിലാക്കുന്ന AI അടുത്ത ഘട്ടത്തിൽ വരും."
-            if ml else "Sorry, I didn't understand that. Type \"help\" for examples. An AI that understands free-form questions comes in the next phase.")
+    return ("ക്ഷമിക്കണം, അത് എനിക്ക് മനസ്സിലായില്ല. \"സഹായം\" എന്ന് എഴുതിയാൽ ഉദാഹരണങ്ങൾ കാണാം. സ്വതന്ത്രമായ ചോദ്യങ്ങൾക്ക് AI മോഡൽ ഓൺ ആക്കുക (README: AI brain)."
+            if ml else "Sorry, I didn't understand that. Type \"help\" for examples. For free-form questions, turn on the AI model (README: AI brain).")

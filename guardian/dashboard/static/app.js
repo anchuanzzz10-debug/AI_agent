@@ -70,9 +70,25 @@
     return div;
   }
 
+  // AI status line
+  var aiStatus = document.getElementById("ai-status");
+  fetch("/api/ai/status", { credentials: "same-origin" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (st) {
+      if (!st || !aiStatus) return;
+      aiStatus.textContent = !st.enabled ? text("ai-off")
+        : st.ready ? text("ai-ready").replace("{model}", st.model)
+        : text("ai-down").replace("{message}", st.message);
+      aiStatus.hidden = false;
+    })
+    .catch(function () { /* status is informational only */ });
+
   function send(message) {
     add(message, "me");
     var pending = add("…", "bot");
+    var thinkingTimer = setTimeout(function () {
+      if (pending.textContent === "…") pending.textContent = text("ai-thinking");
+    }, 2500);
     fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
@@ -85,11 +101,19 @@
         return r.json();
       })
       .then(function (data) {
+        clearTimeout(thinkingTimer);
         if (!data) return;
         pending.textContent = data.reply;
+        if (data.source === "ai") {
+          var badge = document.createElement("div");
+          badge.className = "ai-badge";
+          badge.textContent = text("ai-badge") + " " + ((data.tools || []).join(", ") || "-");
+          pending.appendChild(badge);
+        }
         speak(data.reply, data.lang);
       })
       .catch(function (err) {
+        clearTimeout(thinkingTimer);
         pending.textContent = errorLabel + ": " + err.message;
         pending.className = "msg bot err";
       });

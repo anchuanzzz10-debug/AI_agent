@@ -13,7 +13,10 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
+from ..ai.agent import Agent
+from ..ai.ollama import OllamaClient
 from ..approvals import ApprovalGate, ApprovalStatus
 from ..checks.wordpress import (CHANGE_PASSWORD as WP_CHANGE_PASSWORD, CHANGE_USER as WP_CHANGE_USER,
                                 READ_PASSWORD as WP_READ_PASSWORD, READ_USER as WP_READ_USER,
@@ -89,7 +92,8 @@ def wp_verdict(results) -> str:
 
 def create_app(home: Path, config_dir: Path, vault: Vault,
                check_runner: CheckRunner | None = None, sessions: auth.SessionStore | None = None,
-               http_client_factory: Callable[[], httpx.Client] = _default_http_client) -> FastAPI:
+               http_client_factory: Callable[[], httpx.Client] = _default_http_client,
+               ai_client: OllamaClient | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -141,6 +145,8 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
                     running.discard(pid)
         threading.Thread(target=job, daemon=True, name=f"check-{pid}").start()
         return True
+
+    ai_agent = Agent(ai_client, registry.load_all, store_for, start_check) if ai_client else None
 
     def summarize(project: ProjectConfig) -> dict:
         store = store_for(project.id)
@@ -403,13 +409,27 @@ def create_app(home: Path, config_dir: Path, vault: Vault,
             body = await request.json()
         except ValueError:
             return JSONResponse({"error": "bad request"}, status_code=400)
-        ctx = ChatContext(registry.load_all(), store_for, start_check)
-        return JSONResponse(respond(str(body.get("message", "")), ctx))
+        ctx = ChatContext(registry.load_all(), store_for, start_check, ai_agent)
+        # The AI can take a minute on a laptop CPU: run it off the event loop so
+        # the rest of the dashboard stays responsive.
+        result = await run_in_threadpool(respond, str(body.get("message", "")), ctx)
+        return JSONResponse(result)
+
+    @app.get("/api/ai/status")
+    def ai_status(request: Request):
+        if not session_of(request):
+            return JSONResponse({"error": "login required"}, status_code=401)
+        if ai_client is None:
+            return {"enabled": False, "ready": False, "model": None,
+                    "message": "AI is turned off (guardian ai on)"}
+        st = ai_client.status()
+        return {"enabled": True, "ready": st.ready, "model": ai_client.cfg.model, "message": st.message}
 
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
 
+    app.state.ai_agent = ai_agent
     app.state.running = running
     app.state.start_check = start_check
     return app

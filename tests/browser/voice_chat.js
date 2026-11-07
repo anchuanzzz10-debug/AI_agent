@@ -166,6 +166,13 @@ async function lastBotReply(page) {
       return { note: await page.textContent("#voice-note") };
     }));
   }
+  out.push(await scenario(browser, "ai_free_question", { say: "x", voices: ML }, async (page) => {
+    await page.waitForSelector("#ai-status:not([hidden])");
+    await page.fill("#chat-input", "ഇന്ന് ഞാൻ എന്തിനെക്കുറിച്ചാണ് ശ്രദ്ധിക്കേണ്ടത്?");
+    await page.press("#chat-input", "Enter");
+    await page.waitForSelector(".ai-badge");
+    return { status: await page.textContent("#ai-status"), reply: await lastBotReply(page) };
+  }));
   await browser.close();
 
   // Real getUserMedia with Chromium's fake microphone (plays a test tone).
